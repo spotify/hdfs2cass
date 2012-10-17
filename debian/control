@@ -1,0 +1,11 @@
+Source: spotify-pig-extensions
+Section: non-free/web
+Priority: extra
+Maintainer: Wouter de Bie <wouter@spotify.com>
+Build-Depends: debhelper (>= 7), sun-java6-jdk, maven2, spotify-maven-config
+Standards-Version: 3.8.0
+
+Package: spotify-pig-extensions
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, sun-java6-jre
+Description: Web app for searching for music in the Spotify catalogue

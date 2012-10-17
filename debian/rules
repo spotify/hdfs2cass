@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+export JAVA_HOME=/usr/lib/jvm/java-6-sun
+MVN = mvn -U -e -Dmaven.repo.local=$$PWD/.m2-repository -s/etc/maven2/spotify-settings.xml
+
+%:
+	dh $@
+
+build:
+	dh build --until dh_auto_build
+	$(MVN) package
+	dh build --remaining
+
+clean:
+	dh clean
+	$(MVN) clean
