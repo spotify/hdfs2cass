@@ -33,6 +33,12 @@
             <type>jar</type>
         </dependency>
         <dependency>
+            <groupId>com.spotify.hadoop</groupId>
+            <artifactId>spotify-hadoop-extra</artifactId>
+            <version>2.0</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro-mapred</artifactId>
             <version>1.5.4</version>
@@ -92,6 +98,8 @@
                                     <include>org.apache.cassandra:cassandra-thrift</include>
                                     <include>org.apache.thrift</include>
                                     <include>com.google.guava:guava</include>
+                                    <include>org.apache.avro:avro-mapred</include>
+                                    <include>org.apache.avro:avro</include>
                                 </includes>
                             </artifactSet>
 
