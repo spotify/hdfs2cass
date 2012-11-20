@@ -25,9 +25,9 @@ public class BulkLoader extends Configured implements Tool
 {
 
   //basic Map job to parse into a Text based reducable format.
-  public static class MapToText extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>
+  public static class MapToText extends MapReduceBase implements Mapper<Text, Text, Text, Text>
   {
-    public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
+    public void map(Text value, Text ignored, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
       // each value is a line of tab separated columns with values:
       // HdfsToCassandra 1 <rowkey> <colkey> <value>
       // HdfsToCassandra 2 <rowkey> <colkey> <ttl> <value>
@@ -92,7 +92,7 @@ public class BulkLoader extends Configured implements Tool
         }
         ttl = line.substring(tab1, tab2);
       } else {
-        ttl = String.valueOf(System.currentTimeMillis() * 1000);
+        ttl = "0";
       }
 
       tab1 = tab2+1;
@@ -166,7 +166,6 @@ public class BulkLoader extends Configured implements Tool
     job.setJarByClass(BulkLoader.class);
 
     job.setInputFormat(AvroAsTextInputFormat.class);
-//    job.setInputFormat(TextInputFormat.class);
 
     FileInputFormat.setInputPaths(job, inputPath);
 
