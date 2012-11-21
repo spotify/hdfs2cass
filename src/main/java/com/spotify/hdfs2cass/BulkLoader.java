@@ -138,23 +138,23 @@ public class BulkLoader extends Configured implements Tool
   }
 
   public int run(String[] args) throws Exception {
-    CommandLine line = parseOptions(args);
+    CommandLine cmdLine = parseOptions(args);
 
-    Path inputPath = new Path(line.getOptionValue('i'));
-    String seedNodeHost = line.getOptionValue('n');
-    String seedNodePort = line.getOptionValue('p', "9160");
-    String keyspace  = line.getOptionValue('k');
-    String colfamily = line.getOptionValue('c');
-    int mappers  = Integer.parseInt(line.getOptionValue('m', "0"));
-    int reducers = Integer.parseInt(line.getOptionValue('r', "0"));
+    Path inputPath = new Path(cmdLine.getOptionValue('i'));
+    String seedNodeHost = cmdLine.getOptionValue('h');
+    String seedNodePort = cmdLine.getOptionValue('p', "9160");
+    String keyspace  = cmdLine.getOptionValue('k');
+    String colfamily = cmdLine.getOptionValue('c');
+    int mappers  = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
+    int reducers = Integer.parseInt(cmdLine.getOptionValue('r', "0"));
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
     ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
     ConfigHelper.setOutputPartitioner(conf,"org.apache.cassandra.dht.RandomPartitioner");
-    if(line.hasOption('s'))
-      conf.set("mapreduce.output.bulkoutputformat.buffersize", line.getOptionValue('s', "32"));
+    if(cmdLine.hasOption('s'))
+      conf.set("mapreduce.output.bulkoutputformat.buffersize", cmdLine.getOptionValue('s', "32"));
 
 
     JobConf job = new JobConf(conf);
@@ -163,7 +163,11 @@ public class BulkLoader extends Configured implements Tool
       job.setNumMapTasks(mappers);
     if(reducers > 0)
       job.setNumReduceTasks(reducers);
-    job.setJobName("bulkloader-hdfs-to-cassandra");
+
+    String jobName = "bulkloader-hdfs-to-cassandra";
+    if (cmdLine.hasOption('n'))
+      jobName += "-" + cmdLine.getOptionValue('n');
+    job.setJobName(jobName);
     job.setJarByClass(BulkLoader.class);
 
     job.setInputFormat(AvroAsTextInputFormat.class);
@@ -179,7 +183,7 @@ public class BulkLoader extends Configured implements Tool
     job.setOutputKeyClass(ByteBuffer.class);
     job.setOutputValueClass(List.class);
 
-    if(line.hasOption('s'))
+    if(cmdLine.hasOption('s'))
       job.setOutputFormat(BulkOutputFormat.class);
     else
       job.setOutputFormat(ColumnFamilyOutputFormat.class);
@@ -191,29 +195,35 @@ public class BulkLoader extends Configured implements Tool
   private static CommandLine parseOptions(String[] args) throws ParseException {
     Options options = new Options();
     options.addOption("i", "input",        true, "Input path");
-    options.addOption("n", "node",         true, "Cassandra Seed Node");
+    options.addOption("h", "host",         true, "Cassandra Seed Node Host");
     options.addOption("p", "port",         true, "Cassandra Seed Node Port [9160]");
     options.addOption("k", "keyspace",     true, "Keyspace to write to");
     options.addOption("c", "columnfamily", true, "Column Family to write to");
     options.addOption("m", "mappers",      true, "Number of Mappers");
     options.addOption("r", "reducers",     true, "Number of Reducers");
     options.addOption("s", "sstablesize",  true, "Size of the sstables in Mb, otherwise, send directly");
+    options.addOption("n", "jobname",      true, "Name of this job [bulkloader-hdfs-to-cassandra]");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
     CommandLineParser parser = new GnuParser();
-    CommandLine line = parser.parse(options, args, false);
+    CommandLine cmdLine = null;
+    try {
+      cmdLine = parser.parse(options, args, false);
+    }catch (MissingArgumentException e){
+    }
 
-    if( !line.hasOption('i') ||
-        !line.hasOption('n') ||
-        !line.hasOption('k') ||
-        !line.hasOption('c')
+    if( cmdLine == null ||
+        !cmdLine.hasOption('i') ||
+        !cmdLine.hasOption('h') ||
+        !cmdLine.hasOption('k') ||
+        !cmdLine.hasOption('c')
             ){
         printUsage(options);
         System.exit(1);
     }
-    return line;
+    return cmdLine;
   }
-  private static final String USAGE = "-i input/path -n cassandra.site -k keyspace -c colfamily";
+  private static final String USAGE = "-i input/path -h cassandra-host.site.domain -k keyspace -c colfamily";
   private static final String HEADER = "HDFS to Cassandra Bulk Loader";
   private static final String FOOTER = "";
   private static void printUsage(Options options){
