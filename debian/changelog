@@ -1,0 +1,6 @@
+spotify-hdfs2cass (1-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Timo Ewalds <timo@spotify.com> Wed Nov 21 16:27:58 EST 2012
+
