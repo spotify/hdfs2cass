@@ -114,12 +114,12 @@ public class BulkLoader extends Configured implements Tool
         String[] cols = line.split("\t", 4);
 
         Column column = new Column();
-        column.name = ByteBufferUtil.bytes(cols[0]);
-        column.timestamp = Long.parseLong(cols[1]);
+        column.setName(ByteBufferUtil.bytes(cols[0]));
+        column.setTimestamp(Long.parseLong(cols[1]));
         int ttl = Integer.parseInt(cols[2]);
         if(ttl != 0)
-          column.ttl = ttl;
-        column.value = ByteBufferUtil.bytes(cols[3]);
+          column.setTtl(ttl);
+        column.setValue(ByteBufferUtil.bytes(cols[3]));
 
         Mutation mutation = new Mutation();
         mutation.column_or_supercolumn = new ColumnOrSuperColumn();
@@ -153,7 +153,8 @@ public class BulkLoader extends Configured implements Tool
     ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
     ConfigHelper.setOutputPartitioner(conf,"org.apache.cassandra.dht.RandomPartitioner");
-    //conf.set("mapreduce.output.bulkoutputformat.buffersize", "64");
+    if(line.hasOption('s'))
+      conf.set("mapreduce.output.bulkoutputformat.buffersize", line.getOptionValue('s', "32"));
 
 
     JobConf job = new JobConf(conf);
@@ -178,8 +179,10 @@ public class BulkLoader extends Configured implements Tool
     job.setOutputKeyClass(ByteBuffer.class);
     job.setOutputValueClass(List.class);
 
-    job.setOutputFormat(BulkOutputFormat.class);
-//    job.setOutputFormat(ColumnFamilyOutputFormat.class);
+    if(line.hasOption('s'))
+      job.setOutputFormat(BulkOutputFormat.class);
+    else
+      job.setOutputFormat(ColumnFamilyOutputFormat.class);
 
     JobClient.runJob(job);
     return 0;
@@ -194,6 +197,7 @@ public class BulkLoader extends Configured implements Tool
     options.addOption("c", "columnfamily", true, "Column Family to write to");
     options.addOption("m", "mappers",      true, "Number of Mappers");
     options.addOption("r", "reducers",     true, "Number of Reducers");
+    options.addOption("s", "sstablesize",  true, "Size of the sstables in Mb, otherwise, send directly");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
     CommandLineParser parser = new GnuParser();
