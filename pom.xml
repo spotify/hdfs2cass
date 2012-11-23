@@ -114,6 +114,7 @@
                                     <include>com.ning:compress-lzf</include>
                                 </includes>
                             </artifactSet>
+                            <minimizeJar>true</minimizeJar>
                         </configuration>
                     </execution>
                 </executions>

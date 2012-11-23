@@ -2,25 +2,25 @@
                               -----------------
 
 
-Copyright (c) 2011 Spotify AB
+Copyright (c) 2012 Spotify AB
 
 THIS REPOSITORY IS THE PROPERTY OF SPOTIFY AB
 UNAUTHORIZED ACCESS TO THIS DATA IS STRICTLY PROHIBITED.
 
-README Template Version 7
+README Template Version 8
 
-Project     : pig-extensions
-Maintainer  : Wouter de Bie <wouter@spotify.com>
-Guild       : Analytics Infrastructure <analytics+infrastructure@spotify.com>
-Dependencies: hadoop-pig
+Project     : hdfs2cass
+Maintainer  : Uldis Barbans <uldis@spotify.com>
+Chapter     : Analytics and Data Infrastructure <adi@spotify.com>
+Dependencies:
 Related     :
-System      : Analytics pipeline
-Environment : Java
+System      : DataZoo
+Environment : Java, Python
 
 DESCRIPTION
 ------------
 
-UDFs for PIG
+Cassandra exporter. Uses org.apache.cassandra.hadoop.BulkOutputFormat for high throughput Hadoop interoperability.
 
 DOCUMENTATION
 -------------

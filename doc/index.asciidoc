@@ -1,0 +1,5 @@
+Hadoop to Cassandra exporter
+============================
+Uldis Barbans <uldis@spotify.com>
+
+See https://wiki.spotify.net/wiki/Cassandra/BulkLoading#Hadoop_exporter
