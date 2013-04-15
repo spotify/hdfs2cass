@@ -153,9 +153,18 @@ public class BulkLoader extends Configured implements Tool {
     ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
     ConfigHelper.setOutputPartitioner(conf, "org.apache.cassandra.dht.RandomPartitioner");
-    if (cmdLine.hasOption('s'))
-      conf.set("mapreduce.output.bulkoutputformat.buffersize", cmdLine.getOptionValue('s', "32"));
 
+    if (cmdLine.hasOption('s')) {
+      conf.set("mapreduce.output.bulkoutputformat.buffersize", cmdLine.getOptionValue('s', "32"));
+    }
+
+    if (cmdLine.hasOption('M')) {
+      conf.set("mapreduce.output.bulkoutputformat.streamthrottlembits", cmdLine.getOptionValue('M'));
+    }
+
+    if (cmdLine.hasOption('C')) {
+      ConfigHelper.setOutputCompressionClass(conf, cmdLine.getOptionValue('c'));
+    }
 
     JobConf job = new JobConf(conf);
 
@@ -202,6 +211,8 @@ public class BulkLoader extends Configured implements Tool {
     options.addOption("m", "mappers", true, "Number of Mappers");
     options.addOption("r", "reducers", true, "Number of Reducers");
     options.addOption("s", "sstablesize", true, "Size of the sstables in Mb, otherwise, send directly");
+    options.addOption("C", "compression", true, "Compression class to use, if writing sstable's");
+    options.addOption("M", "throttle_mbits",true, "Throttling setting, if writing sstable's [0=UNLIMITED]");
     options.addOption("n", "jobname", true, "Name of this job [bulkloader-hdfs-to-cassandra]");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
@@ -212,15 +223,24 @@ public class BulkLoader extends Configured implements Tool {
     } catch (MissingArgumentException e) {
     }
 
+    boolean badOptions = false;
     if (cmdLine == null ||
             !cmdLine.hasOption('i') ||
             !cmdLine.hasOption('h') ||
             !cmdLine.hasOption('k') ||
             !cmdLine.hasOption('c')
             ) {
+      badOptions = true;
+    } else if (!cmdLine.hasOption('s') &&
+            (cmdLine.hasOption('C') || cmdLine.hasOption('M'))) {
+      badOptions = true;
+    }
+
+    if (badOptions) {
       printUsage(options);
       System.exit(1);
     }
+
     return cmdLine;
   }
 
