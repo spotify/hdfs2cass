@@ -210,7 +210,7 @@ public class BulkLoader extends Configured implements Tool {
     options.addOption("c", "columnfamily", true, "Column Family to write to");
     options.addOption("m", "mappers", true, "Number of Mappers");
     options.addOption("r", "reducers", true, "Number of Reducers");
-    options.addOption("s", "sstablesize", true, "Size of the sstables in Mb, otherwise, send directly");
+    options.addOption("s", "sstablebuffersize", true, "Buffer size in MB before writing an sstable, otherwise, send directly");
     options.addOption("C", "compression", true, "Compression class to use, if writing sstable's");
     options.addOption("M", "throttle_mbits",true, "Throttling setting, if writing sstable's [0=UNLIMITED]");
     options.addOption("n", "jobname", true, "Name of this job [bulkloader-hdfs-to-cassandra]");
