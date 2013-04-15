@@ -21,12 +21,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class BulkLoader extends Configured implements Tool
-{
+public class BulkLoader extends Configured implements Tool {
 
   //basic Map job to parse into a Text based reducable format.
-  public static class MapToText extends MapReduceBase implements Mapper<Text, Text, Text, Text>
-  {
+  public static class MapToText extends MapReduceBase implements Mapper<Text, Text, Text, Text> {
     public void map(Text value, Text ignored, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
       // each value is a line of tab separated columns with values:
       // HdfsToCassandra 1 <rowkey> <colkey> <value>
@@ -37,14 +35,15 @@ public class BulkLoader extends Configured implements Tool
 
       String line = value.toString();
       int tab1, tab2;
-      tab1 = 0; tab2 = line.indexOf('\t');
+      tab1 = 0;
+      tab2 = line.indexOf('\t');
       String type = line.substring(tab1, tab2);
-      if (!type.equals("HdfsToCassandra")){
+      if (!type.equals("HdfsToCassandra")) {
         System.err.println("Unknown type: " + type + ", in line: " + line);
         return;
       }
 
-      tab1 = tab2+1;
+      tab1 = tab2 + 1;
       tab2 = line.indexOf('\t', tab1);
       int version = Integer.parseInt(line.substring(tab1, tab2));
 
@@ -53,7 +52,7 @@ public class BulkLoader extends Configured implements Tool
         return;
       }
 
-      tab1 = tab2+1;
+      tab1 = tab2 + 1;
       tab2 = line.indexOf('\t', tab1);
       if (tab2 == -1) {
         System.err.println("Missing rowkey in line: " + line);
@@ -61,7 +60,7 @@ public class BulkLoader extends Configured implements Tool
       }
       String rowkey = line.substring(tab1, tab2);
 
-      tab1 = tab2+1;
+      tab1 = tab2 + 1;
       tab2 = line.indexOf('\t', tab1);
       if (tab2 == -1) {
         System.err.println("Missing colkey in line: " + line);
@@ -71,7 +70,7 @@ public class BulkLoader extends Configured implements Tool
 
       String timestamp;
       if (version > 2) {
-        tab1 = tab2+1;
+        tab1 = tab2 + 1;
         tab2 = line.indexOf('\t', tab1);
         if (tab2 == -1) {
           System.err.println("Missing timestamp in line: " + line);
@@ -84,7 +83,7 @@ public class BulkLoader extends Configured implements Tool
 
       String ttl;
       if (version > 1) {
-        tab1 = tab2+1;
+        tab1 = tab2 + 1;
         tab2 = line.indexOf('\t', tab1);
         if (tab2 == -1) {
           System.err.println("Missing ttl in line: " + line);
@@ -95,12 +94,13 @@ public class BulkLoader extends Configured implements Tool
         ttl = "0";
       }
 
-      tab1 = tab2+1;
+      tab1 = tab2 + 1;
       String colvalue = line.substring(tab1);
 
       output.collect(new Text(rowkey), new Text(colkey + '\t' + timestamp + '\t' + ttl + '\t' + colvalue));
     }
   }
+
   //take values from MapToText and send to cassandra via the BulkOutputFormat which writes local sstables and streams them.
   public static class ReduceTextToCassandra extends MapReduceBase implements Reducer<Text, Text, ByteBuffer, List<Mutation>> {
     public void reduce(Text key, Iterator<Text> values, OutputCollector<ByteBuffer, List<Mutation>> output, Reporter reporter) throws IOException {
@@ -117,7 +117,7 @@ public class BulkLoader extends Configured implements Tool
         column.setName(ByteBufferUtil.bytes(cols[0]));
         column.setTimestamp(Long.parseLong(cols[1]));
         int ttl = Integer.parseInt(cols[2]);
-        if(ttl != 0)
+        if (ttl != 0)
           column.setTtl(ttl);
         column.setValue(ByteBufferUtil.bytes(cols[3]));
 
@@ -143,25 +143,25 @@ public class BulkLoader extends Configured implements Tool
     Path inputPath = new Path(cmdLine.getOptionValue('i'));
     String seedNodeHost = cmdLine.getOptionValue('h');
     String seedNodePort = cmdLine.getOptionValue('p', "9160");
-    String keyspace  = cmdLine.getOptionValue('k');
+    String keyspace = cmdLine.getOptionValue('k');
     String colfamily = cmdLine.getOptionValue('c');
-    int mappers  = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
+    int mappers = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
     int reducers = Integer.parseInt(cmdLine.getOptionValue('r', "0"));
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
     ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
-    ConfigHelper.setOutputPartitioner(conf,"org.apache.cassandra.dht.RandomPartitioner");
-    if(cmdLine.hasOption('s'))
+    ConfigHelper.setOutputPartitioner(conf, "org.apache.cassandra.dht.RandomPartitioner");
+    if (cmdLine.hasOption('s'))
       conf.set("mapreduce.output.bulkoutputformat.buffersize", cmdLine.getOptionValue('s', "32"));
 
 
     JobConf job = new JobConf(conf);
 
-    if(mappers > 0)
+    if (mappers > 0)
       job.setNumMapTasks(mappers);
-    if(reducers > 0)
+    if (reducers > 0)
       job.setNumReduceTasks(reducers);
 
     String jobName = "bulkloader-hdfs-to-cassandra";
@@ -183,7 +183,7 @@ public class BulkLoader extends Configured implements Tool
     job.setOutputKeyClass(ByteBuffer.class);
     job.setOutputValueClass(List.class);
 
-    if(cmdLine.hasOption('s'))
+    if (cmdLine.hasOption('s'))
       job.setOutputFormat(BulkOutputFormat.class);
     else
       job.setOutputFormat(ColumnFamilyOutputFormat.class);
@@ -194,39 +194,41 @@ public class BulkLoader extends Configured implements Tool
 
   private static CommandLine parseOptions(String[] args) throws ParseException {
     Options options = new Options();
-    options.addOption("i", "input",        true, "Input path");
-    options.addOption("h", "host",         true, "Cassandra Seed Node Host");
-    options.addOption("p", "port",         true, "Cassandra Seed Node Port [9160]");
-    options.addOption("k", "keyspace",     true, "Keyspace to write to");
+    options.addOption("i", "input", true, "Input path");
+    options.addOption("h", "host", true, "Cassandra Seed Node Host");
+    options.addOption("p", "port", true, "Cassandra Seed Node Port [9160]");
+    options.addOption("k", "keyspace", true, "Keyspace to write to");
     options.addOption("c", "columnfamily", true, "Column Family to write to");
-    options.addOption("m", "mappers",      true, "Number of Mappers");
-    options.addOption("r", "reducers",     true, "Number of Reducers");
-    options.addOption("s", "sstablesize",  true, "Size of the sstables in Mb, otherwise, send directly");
-    options.addOption("n", "jobname",      true, "Name of this job [bulkloader-hdfs-to-cassandra]");
+    options.addOption("m", "mappers", true, "Number of Mappers");
+    options.addOption("r", "reducers", true, "Number of Reducers");
+    options.addOption("s", "sstablesize", true, "Size of the sstables in Mb, otherwise, send directly");
+    options.addOption("n", "jobname", true, "Name of this job [bulkloader-hdfs-to-cassandra]");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
     CommandLineParser parser = new GnuParser();
     CommandLine cmdLine = null;
     try {
       cmdLine = parser.parse(options, args, false);
-    }catch (MissingArgumentException e){
+    } catch (MissingArgumentException e) {
     }
 
-    if( cmdLine == null ||
-        !cmdLine.hasOption('i') ||
-        !cmdLine.hasOption('h') ||
-        !cmdLine.hasOption('k') ||
-        !cmdLine.hasOption('c')
-            ){
-        printUsage(options);
-        System.exit(1);
+    if (cmdLine == null ||
+            !cmdLine.hasOption('i') ||
+            !cmdLine.hasOption('h') ||
+            !cmdLine.hasOption('k') ||
+            !cmdLine.hasOption('c')
+            ) {
+      printUsage(options);
+      System.exit(1);
     }
     return cmdLine;
   }
+
   private static final String USAGE = "-i input/path -h cassandra-host.site.domain -k keyspace -c colfamily";
   private static final String HEADER = "HDFS to Cassandra Bulk Loader";
   private static final String FOOTER = "";
-  private static void printUsage(Options options){
+
+  private static void printUsage(Options options) {
     HelpFormatter helpFormatter = new HelpFormatter();
     helpFormatter.setWidth(80);
     helpFormatter.printHelp(USAGE, HEADER, options, FOOTER);
