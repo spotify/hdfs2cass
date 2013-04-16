@@ -86,39 +86,40 @@
                 </configuration>
             </plugin>
             <!-- This plugin provides the capability to package the artifact in an uber-jar, including its dependencies and to shade - i.e. rename - the packages of some of the dependencies. -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>1.4</version>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>1.4</version>
+            <configuration>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>shade</goal>
+                </goals>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                  <transformers>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                      <mainClass>com.spotify.hdfs2cass.BulkLoader</mainClass>
+                    </transformer>
+                  </transformers>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <artifactSet>
-                                <includes>
-                                    <include>org.apache.cassandra:cassandra-all</include>
-                                    <include>org.apache.cassandra:cassandra-thrift</include>
-                                    <include>org.apache.thrift</include>
-                                    <include>com.google.guava:guava</include>
-                                    <include>org.apache.avro:avro-mapred</include>
-                                    <include>org.apache.avro:avro</include>
-                                    <include>org.yaml:snakeyaml</include>
-                                    <include>com.github.stephenc.high-scale-lib:high-scale-lib</include>
-                                    <include>com.ning:compress-lzf</include>
-                                </includes>
-                            </artifactSet>
-                            <minimizeJar>true</minimizeJar>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+              </execution>
+            </executions>
+          </plugin>
         </plugins>
     </build>
 </project>
