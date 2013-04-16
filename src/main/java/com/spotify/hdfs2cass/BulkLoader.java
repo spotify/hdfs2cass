@@ -163,7 +163,7 @@ public class BulkLoader extends Configured implements Tool {
     }
 
     if (cmdLine.hasOption('C')) {
-      ConfigHelper.setOutputCompressionClass(conf, cmdLine.getOptionValue('c'));
+      ConfigHelper.setOutputCompressionClass(conf, cmdLine.getOptionValue('C'));
     }
 
     JobConf job = new JobConf(conf);
