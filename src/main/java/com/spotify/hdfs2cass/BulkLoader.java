@@ -147,6 +147,7 @@ public class BulkLoader extends Configured implements Tool {
     String colfamily = cmdLine.getOptionValue('c');
     int mappers = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
     int reducers = Integer.parseInt(cmdLine.getOptionValue('r', "0"));
+    Integer copiers = Integer.parseInt(cmdLine.getOptionValue('P', "0"));
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
@@ -172,6 +173,8 @@ public class BulkLoader extends Configured implements Tool {
       job.setNumMapTasks(mappers);
     if (reducers > 0)
       job.setNumReduceTasks(reducers);
+    if (copiers > 0)
+      job.set("mapred.reduce.parallel.copies", copiers.toString());
 
     String jobName = "bulkloader-hdfs-to-cassandra";
     if (cmdLine.hasOption('n'))
@@ -210,6 +213,7 @@ public class BulkLoader extends Configured implements Tool {
     options.addOption("c", "columnfamily", true, "Column Family to write to");
     options.addOption("m", "mappers", true, "Number of Mappers");
     options.addOption("r", "reducers", true, "Number of Reducers");
+    options.addOption("P", "parallel_copiers", true, "Setting for mapred.reduce.parallel.copies");
     options.addOption("s", "sstablebuffersize", true, "Buffer size in MB before writing an sstable, otherwise, send directly");
     options.addOption("C", "compression", true, "Compression class to use, if writing sstable's");
     options.addOption("M", "throttle_mbits",true, "Throttling setting, if writing sstable's [0=UNLIMITED]");
