@@ -140,7 +140,7 @@ public class BulkLoader extends Configured implements Tool {
   public int run(String[] args) throws Exception {
     CommandLine cmdLine = parseOptions(args);
 
-    Path inputPath = new Path(cmdLine.getOptionValue('i'));
+    String[] inputPaths = cmdLine.getOptionValues('i');
     String seedNodeHost = cmdLine.getOptionValue('h');
     String seedNodePort = cmdLine.getOptionValue('p', "9160");
     String keyspace = cmdLine.getOptionValue('k');
@@ -184,7 +184,9 @@ public class BulkLoader extends Configured implements Tool {
 
     job.setInputFormat(AvroAsTextInputFormat.class);
 
-    FileInputFormat.setInputPaths(job, inputPath);
+    for (String inputPath: inputPaths) {
+        FileInputFormat.addInputPath(job, new Path(inputPath));
+    }
 
     //map just outputs text, reduce sends to cassandra
     job.setMapperClass(MapToText.class);
