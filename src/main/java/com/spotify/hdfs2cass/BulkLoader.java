@@ -9,6 +9,7 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn;
 import org.apache.cassandra.thrift.Mutation;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.commons.cli.*;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -103,6 +104,9 @@ public class BulkLoader extends Configured implements Tool {
 
   //take values from MapToText and send to cassandra via the BulkOutputFormat which writes local sstables and streams them.
   public static class ReduceTextToCassandra extends MapReduceBase implements Reducer<Text, Text, ByteBuffer, List<Mutation>> {
+    public void configure(JobConf job) {
+      useBase64 = job.getBoolean("com.spotify.hdfs2cass.base64", false);
+    }
     public void reduce(Text key, Iterator<Text> values, OutputCollector<ByteBuffer, List<Mutation>> output, Reporter reporter) throws IOException {
       String rowkey = key.toString();
       List<Mutation> list = new ArrayList<Mutation>();
@@ -119,7 +123,11 @@ public class BulkLoader extends Configured implements Tool {
         int ttl = Integer.parseInt(cols[2]);
         if (ttl != 0)
           column.setTtl(ttl);
-        column.setValue(ByteBufferUtil.bytes(cols[3]));
+        if (useBase64) {
+          column.setValue(Base64.decodeBase64(cols[3].getBytes()));
+        } else {
+          column.setValue(ByteBufferUtil.bytes(cols[3]));
+        }
 
         Mutation mutation = new Mutation();
         mutation.column_or_supercolumn = new ColumnOrSuperColumn();
@@ -130,6 +138,8 @@ public class BulkLoader extends Configured implements Tool {
         output.collect(ByteBufferUtil.bytes(rowkey), list);
       }
     }
+
+    boolean useBase64;
   }
 
   public static void main(String[] args) throws Exception {
@@ -166,6 +176,10 @@ public class BulkLoader extends Configured implements Tool {
 
     if (cmdLine.hasOption('C')) {
       ConfigHelper.setOutputCompressionClass(conf, cmdLine.getOptionValue('C'));
+    }
+
+    if (cmdLine.hasOption('b')) {
+      conf.setBoolean("com.spotify.hdfs2cass.base64", true);
     }
 
     JobConf job = new JobConf(conf);
@@ -225,6 +239,7 @@ public class BulkLoader extends Configured implements Tool {
     options.addOption("M", "throttle_mbits",true, "Throttling setting, if writing sstable's [0=UNLIMITED]");
     options.addOption("n", "jobname", true, "Name of this job [bulkloader-hdfs-to-cassandra]");
     options.addOption("pool", true, "Specify the scheduling pool this job belongs in");
+    options.addOption("b", "base64", false, "Base64-decode values before writing");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
     CommandLineParser parser = new GnuParser();
