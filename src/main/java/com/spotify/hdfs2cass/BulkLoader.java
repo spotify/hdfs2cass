@@ -148,6 +148,7 @@ public class BulkLoader extends Configured implements Tool {
     int mappers = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
     int reducers = Integer.parseInt(cmdLine.getOptionValue('r', "0"));
     Integer copiers = Integer.parseInt(cmdLine.getOptionValue('P', "0"));
+    String poolName = cmdLine.getOptionValue("pool");
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
@@ -175,6 +176,9 @@ public class BulkLoader extends Configured implements Tool {
       job.setNumReduceTasks(reducers);
     if (copiers > 0)
       job.set("mapred.reduce.parallel.copies", copiers.toString());
+
+    if (poolName != null)
+        job.set("mapred.fairscheduler.pool", poolName);
 
     String jobName = "bulkloader-hdfs-to-cassandra";
     if (cmdLine.hasOption('n'))
@@ -220,6 +224,7 @@ public class BulkLoader extends Configured implements Tool {
     options.addOption("C", "compression", true, "Compression class to use, if writing sstable's");
     options.addOption("M", "throttle_mbits",true, "Throttling setting, if writing sstable's [0=UNLIMITED]");
     options.addOption("n", "jobname", true, "Name of this job [bulkloader-hdfs-to-cassandra]");
+    options.addOption("pool", true, "Specify the scheduling pool this job belongs in");
 //    options.addOption("l", "libjars",      true, "I don't know why ToolRunner propagates it"); //http://grokbase.com/t/hadoop/common-user/1181pxrd93/using-libjar-option
 
     CommandLineParser parser = new GnuParser();
