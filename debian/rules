@@ -6,11 +6,12 @@ MVN = mvn -U -e -Dmaven.repo.local=$$PWD/.m2-repository -s/etc/maven2/spotify-se
 %:
 	dh $@
 
-build:
-	dh build --until dh_auto_build
+override_dh_auto_build:
+	dh_auto_build
 	$(MVN) package
-	dh build --remaining
 
 clean:
 	dh clean
 	$(MVN) clean
+
+.PHONY: clean
