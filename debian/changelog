@@ -1,3 +1,10 @@
+spotify-hdfs2cass (1.1-1) unstable; urgency=low
+
+  * Add -b/--base64 option for encoded binary values.
+  * Install versionless symlink for jar file.
+
+ -- Marcus Better <marcus@better.se>  Fri, 17 May 2013 11:17:51 +0200
+
 spotify-hdfs2cass (1-1) unstable; urgency=low
 
   * Initial release.
