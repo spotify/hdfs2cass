@@ -1,6 +1,8 @@
 package com.spotify.hdfs2cass;
 
 import org.apache.avro.mapred.AvroAsTextInputFormat;
+import org.apache.cassandra.dht.RandomPartitioner;
+import org.apache.cassandra.dht.BigIntegerToken;
 import org.apache.cassandra.hadoop.BulkOutputFormat;
 import org.apache.cassandra.hadoop.ColumnFamilyOutputFormat;
 import org.apache.cassandra.hadoop.ConfigHelper;
@@ -19,6 +21,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -100,6 +103,35 @@ public class BulkLoader extends Configured implements Tool {
 
       output.collect(new Text(rowkey), new Text(colkey + '\t' + timestamp + '\t' + ttl + '\t' + colvalue));
     }
+  }
+
+  public static class MyPartitioner implements Partitioner<Text, Text> {
+      static ArrayList<Integer> reducers;
+
+      @Override
+      public int getPartition(Text key, Text value, int numReducers){
+          String sKey = key.toString();
+          RandomPartitioner rp = new RandomPartitioner();
+          BigIntegerToken t = rp.getToken(ByteBuffer.wrap(sKey.getBytes()));
+          BigInteger[] rangeWidth = rp.MAXIMUM.divideAndRemainder(new BigInteger(Integer.toString(numReducers)));
+
+          if (!(rangeWidth[1].equals(BigInteger.ZERO))) {
+              rangeWidth[0] = rangeWidth[0].add(BigInteger.ONE);
+          }
+
+          int reducer_num = t.token.divide(rangeWidth[0]).intValue();
+          if (reducers == null ) {
+              Random r = new Random(0);
+              reducers = new ArrayList<Integer>(numReducers);
+              for (int i = 0; i < numReducers; i++) {
+                reducers.add(i);
+              }
+              Collections.shuffle(reducers, r);
+          }
+          return reducers.get(reducer_num);
+      }
+      @Override
+      public void configure(JobConf conf) {}
   }
 
   //take values from MapToText and send to cassandra via the BulkOutputFormat which writes local sstables and streams them.
@@ -210,6 +242,8 @@ public class BulkLoader extends Configured implements Tool {
     job.setMapperClass(MapToText.class);
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(Text.class);
+
+    job.setPartitionerClass(MyPartitioner.class);
 
     job.setReducerClass(ReduceTextToCassandra.class);
     job.setOutputKeyClass(ByteBuffer.class);
