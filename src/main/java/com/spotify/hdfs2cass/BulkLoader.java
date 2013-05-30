@@ -1,8 +1,7 @@
 package com.spotify.hdfs2cass;
 
+import com.spotify.hdfs2cass.misc.ClusterInfo;
 import org.apache.avro.mapred.AvroAsTextInputFormat;
-import org.apache.cassandra.dht.RandomPartitioner;
-import org.apache.cassandra.dht.BigIntegerToken;
 import org.apache.cassandra.hadoop.BulkOutputFormat;
 import org.apache.cassandra.hadoop.ColumnFamilyOutputFormat;
 import org.apache.cassandra.hadoop.ConfigHelper;
@@ -15,20 +14,30 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/*
+ * Copyright (c) 2013 Spotify AB
+ *
+ */
 
 public class BulkLoader extends Configured implements Tool {
 
+  private static final Logger log = LoggerFactory.getLogger(BulkLoader.class);
+
   //basic Map job to parse into a Text based reducable format.
-  public static class MapToText extends MapReduceBase implements Mapper<Text, Text, Text, Text> {
+  private static class MapToText extends MapReduceBase implements Mapper<Text, Text, Text, Text> {
     public void map(Text value, Text ignored, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
       // each value is a line of tab separated columns with values:
       // HdfsToCassandra 1 <rowkey> <colkey> <value>
@@ -102,36 +111,8 @@ public class BulkLoader extends Configured implements Tool {
       String colvalue = line.substring(tab1);
 
       output.collect(new Text(rowkey), new Text(colkey + '\t' + timestamp + '\t' + ttl + '\t' + colvalue));
+      reporter.getCounter("hdfs2cass", "Valid mapper keys").increment(1);
     }
-  }
-
-  public static class MyPartitioner implements Partitioner<Text, Text> {
-      static ArrayList<Integer> reducers;
-
-      @Override
-      public int getPartition(Text key, Text value, int numReducers){
-          String sKey = key.toString();
-          RandomPartitioner rp = new RandomPartitioner();
-          BigIntegerToken t = rp.getToken(ByteBuffer.wrap(sKey.getBytes()));
-          BigInteger[] rangeWidth = rp.MAXIMUM.divideAndRemainder(new BigInteger(Integer.toString(numReducers)));
-
-          if (!(rangeWidth[1].equals(BigInteger.ZERO))) {
-              rangeWidth[0] = rangeWidth[0].add(BigInteger.ONE);
-          }
-
-          int reducer_num = t.token.divide(rangeWidth[0]).intValue();
-          if (reducers == null ) {
-              Random r = new Random(0);
-              reducers = new ArrayList<Integer>(numReducers);
-              for (int i = 0; i < numReducers; i++) {
-                reducers.add(i);
-              }
-              Collections.shuffle(reducers, r);
-          }
-          return reducers.get(reducer_num);
-      }
-      @Override
-      public void configure(JobConf conf) {}
   }
 
   //take values from MapToText and send to cassandra via the BulkOutputFormat which writes local sstables and streams them.
@@ -139,6 +120,7 @@ public class BulkLoader extends Configured implements Tool {
     public void configure(JobConf job) {
       useBase64 = job.getBoolean("com.spotify.hdfs2cass.base64", false);
     }
+
     public void reduce(Text key, Iterator<Text> values, OutputCollector<ByteBuffer, List<Mutation>> output, Reporter reporter) throws IOException {
       String rowkey = key.toString();
       List<Mutation> list = new ArrayList<Mutation>();
@@ -166,8 +148,10 @@ public class BulkLoader extends Configured implements Tool {
         mutation.column_or_supercolumn.column = column;
         list.add(mutation);
       }
+
       if (!list.isEmpty()) {
         output.collect(ByteBufferUtil.bytes(rowkey), list);
+        reporter.getCounter("hdfs2cass", "Valid reducer keys").increment(1);
       }
     }
 
@@ -188,15 +172,20 @@ public class BulkLoader extends Configured implements Tool {
     String keyspace = cmdLine.getOptionValue('k');
     String colfamily = cmdLine.getOptionValue('c');
     int mappers = Integer.parseInt(cmdLine.getOptionValue('m', "0"));
-    int reducers = Integer.parseInt(cmdLine.getOptionValue('r', "0"));
     Integer copiers = Integer.parseInt(cmdLine.getOptionValue('P', "0"));
     String poolName = cmdLine.getOptionValue("pool");
+
+    ClusterInfo clusterInfo = new ClusterInfo(seedNodeHost, seedNodePort);
+    clusterInfo.init(keyspace);
+
+    final String partitionerClass = clusterInfo.getPartitionerClass();
+    final int reducers = adjustReducers(Integer.parseInt(cmdLine.getOptionValue('r', "0")), clusterInfo.getNumClusterNodes());
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
     ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
-    ConfigHelper.setOutputPartitioner(conf, "org.apache.cassandra.dht.RandomPartitioner");
+    ConfigHelper.setOutputPartitioner(conf, partitionerClass);
 
     if (cmdLine.hasOption('s')) {
       conf.set("mapreduce.output.bulkoutputformat.buffersize", cmdLine.getOptionValue('s', "32"));
@@ -226,6 +215,9 @@ public class BulkLoader extends Configured implements Tool {
     if (poolName != null)
         job.set("mapred.fairscheduler.pool", poolName);
 
+    // set the nodes as a param for the other hadoop nodes
+    clusterInfo.setConf(job);
+
     String jobName = "bulkloader-hdfs-to-cassandra";
     if (cmdLine.hasOption('n'))
       jobName += "-" + cmdLine.getOptionValue('n');
@@ -243,7 +235,7 @@ public class BulkLoader extends Configured implements Tool {
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(Text.class);
 
-    job.setPartitionerClass(MyPartitioner.class);
+    job.setPartitionerClass(CassandraPartitioner.class);
 
     job.setReducerClass(ReduceTextToCassandra.class);
     job.setOutputKeyClass(ByteBuffer.class);
@@ -256,6 +248,28 @@ public class BulkLoader extends Configured implements Tool {
 
     JobClient.runJob(job);
     return 0;
+  }
+
+  private int adjustReducers(int reducers, int numClusterNodes) {
+    if (numClusterNodes == 0) {
+      throw new RuntimeException("Didn't find any cluster nodes, aborting");
+    }
+
+    if (reducers < numClusterNodes) {
+      reducers = numClusterNodes;
+
+      log.warn("Set reducers to be {} (the number of cluster nodes)", reducers);
+    } else {
+      int excessReducers = reducers % numClusterNodes;
+      if (excessReducers > 0) {
+        reducers -= excessReducers;
+
+        log.warn("Modified reducers to be {} (even multiple of the number of cluster nodes: {})",
+            reducers, numClusterNodes);
+      }
+    }
+
+    return reducers;
   }
 
   private static CommandLine parseOptions(String[] args) throws ParseException {
