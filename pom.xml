@@ -30,7 +30,7 @@ the License. -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
-            <version>2.0.0-mr1-cdh4.0.0</version>
+            <version>2.2.0</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -55,7 +55,7 @@ the License. -->
         <dependency>
             <groupId>org.apache.pig</groupId>
             <artifactId>pig</artifactId>
-            <version>0.9.2-cdh4.0.0</version>
+            <version>0.12.0</version>
             <type>jar</type>
         </dependency>
         <dependency>
