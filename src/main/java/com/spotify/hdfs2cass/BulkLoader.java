@@ -181,7 +181,7 @@ public class BulkLoader extends Configured implements Tool {
     CommandLine cmdLine = parseOptions(args);
 
     String[] inputPaths = cmdLine.getOptionValues('i');
-    String seedNodeHost = cmdLine.getOptionValue('h');
+    String seedNodeHosts = cmdLine.getOptionValue('h');
     String seedNodePort = cmdLine.getOptionValue('p', "9160");
     String keyspace = cmdLine.getOptionValue('k');
     String colfamily = cmdLine.getOptionValue('c');
@@ -189,7 +189,7 @@ public class BulkLoader extends Configured implements Tool {
     Integer copiers = Integer.parseInt(cmdLine.getOptionValue('P', "0"));
     String poolName = cmdLine.getOptionValue("pool");
 
-    ClusterInfo clusterInfo = new ClusterInfo(seedNodeHost, seedNodePort);
+    ClusterInfo clusterInfo = new ClusterInfo(seedNodeHosts, seedNodePort);
     clusterInfo.init(keyspace);
 
     final String partitionerClass = clusterInfo.getPartitionerClass();
@@ -197,7 +197,7 @@ public class BulkLoader extends Configured implements Tool {
 
     Configuration conf = new Configuration();
     ConfigHelper.setOutputColumnFamily(conf, keyspace, colfamily);
-    ConfigHelper.setOutputInitialAddress(conf, seedNodeHost);
+    ConfigHelper.setOutputInitialAddress(conf, seedNodeHosts);
     ConfigHelper.setOutputRpcPort(conf, seedNodePort);
     ConfigHelper.setOutputPartitioner(conf, partitionerClass);
 
@@ -289,7 +289,7 @@ public class BulkLoader extends Configured implements Tool {
   private static CommandLine parseOptions(String[] args) throws ParseException {
     Options options = new Options();
     options.addOption("i", "input", true, "Input path");
-    options.addOption("h", "host", true, "Cassandra Seed Node Host");
+    options.addOption("h", "hosts", true, "Cassandra Seed Node Hosts, comma separated list");
     options.addOption("p", "port", true, "Cassandra Seed Node Port [9160]");
     options.addOption("k", "keyspace", true, "Keyspace to write to");
     options.addOption("c", "columnfamily", true, "Column Family to write to");

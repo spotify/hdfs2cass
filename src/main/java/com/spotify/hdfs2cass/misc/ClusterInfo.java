@@ -24,6 +24,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 
 import java.util.*;
 
@@ -41,7 +42,7 @@ public class ClusterInfo {
 
   public static final String SPOTIFY_CASSANDRA_TOKENS_PARAM = "spotify.cassandra.tokens";
   public static final String SPOTIFY_CASSANDRA_PARTITIONER_PARAM = "spotify.cassandra.partitioner";
-  private final String host;
+  private final String hosts;
   private final int port;
   private final String username;
   private final String password;
@@ -49,16 +50,16 @@ public class ClusterInfo {
   private String partitionerClass;
   private int numClusterNodes;
 
-  public ClusterInfo(final String host,
+  public ClusterInfo(final String hosts,
                      final String port) {
-    this(host, port, null, null);
+    this(hosts, port, null, null);
   }
 
-  public ClusterInfo(final String host,
+  public ClusterInfo(final String hosts,
                      final String port,
                      final String username,
                      final String password) {
-    this.host = host;
+    this.hosts = hosts;
     this.port = Integer.valueOf(port);
     this.username = username;
     this.password = password;
@@ -148,8 +149,8 @@ public class ClusterInfo {
    * @throws Exception
    */
   Cassandra.Client createClient() throws Exception {
-    final TTransport tTransport = new TFramedTransport(new TSocket(host, port));
-    tTransport.open();
+
+    final TTransport tTransport = getOpenTTransport();
 
     final Cassandra.Client client = new Cassandra.Client(new TBinaryProtocol(tTransport));
     if ((username != null) && (password != null)) {
@@ -161,6 +162,21 @@ public class ClusterInfo {
     }
 
     return client;
+  }
+
+  TTransport getOpenTTransport() throws Exception {
+      LinkedList<String> hosts = new LinkedList(Arrays.asList(this.hosts.split(",")));
+      Collections.shuffle(hosts);
+      while (!hosts.isEmpty()) {
+          try {
+              final TTransport tTransport = new TFramedTransport(new TSocket(hosts.remove(), port));
+              tTransport.open();
+              return tTransport;
+          } catch (TTransportException e) {
+              System.err.println("Could not connect to Cassandra host");
+          }
+      }
+      throw new Exception("Could not open connection to Cassandra, tried all: " + this.hosts);
   }
 
   List<String> getTokenRanges() {
