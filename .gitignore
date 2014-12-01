@@ -1,5 +1,6 @@
-.idea
-target/
-*.iml
-*.ipr
-*.iws
+target/*
+in/*
+.idea/*
+*iml
+
+

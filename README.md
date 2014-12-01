@@ -1,43 +1,99 @@
-## hdfs2cass
+# hdfs2cass
 
-*hdfs2cass* is a simple example of a Hadoop job that runs a mapreduce job to move data from HDFS into a Cassandra cluster
+hdfs2cass is a wrapper around BulkOutputFormat(s) of Appache Cassandra (C*). It is written using Apache Crunch's API in attempt to make moving data from Hadoop's HDFS into C* easy.
 
-We use it for many terabytes a day, across datacenters, firewalls, and oceans.
+## Quickstart
 
-## Features
+Here's a quick walkthrough of what needs to be done to succefully run hdfs2cass.
 
-* Builds SSTables and uploads them
-* Uses a custom partitioner to mirror the topology in the reduce step
+### Set up a C* Cluster
 
-## Usage
+To start with, let's assume we have a C* cluster running somewhere and one host in that cluster having a hostname of:
 
-```
-hadoop jar spotify-hdfs2cass-1.0.jar com.spotify.hdfs2cass.BulkLoader -i <hdfs/input/path> -h <cassandra-host.site.domain> -k <keyspace> -c <column family>
-```
+    cassandra-host.example.net
 
-The format of the input file is an artefact of how other things look at Spotify. It's a raw avro text input file containing tab-separated line of records
+In that cluster, we create the following shchema:
 
-1. The string "HdfsToCassandra"
-2. A version number, 1, 2 or 3
-3. Row key
-4. Column name
-5. (optional) Timestamp (only if the version is 3, otherwise default is migration time)
-6. (optional) TTL in microseconds (only if the version is 2 or 3, otherwise the default is 0 = never)
-7. Column value
+    CREATE KEYSPACE example WITH replication = {
+      'class': 'SimpleStrategy', 'replication_factor': '1'};
+    CREATE TABLE example.songstreams (
+      user_id text,
+      timestamp bigint,
+      song_id text,
+      PRIMARY KEY (user_id));
 
-The format is probably not exactly what you want, but we are planning to add support for more generic formats in the futures.
 
-You can also encode the last item in base64 if you provide the -b flag
+### Get some Avro files
+    
+Next, we'll need some Avro files. Check [this tutorial](http://avro.apache.org/docs/1.7.7/gettingstartedjava.html) to see how to get started with Avro. We will assume Avro files of this schema:
 
-## Problems
+    {"namespace": "example.hdfs2cass",
+     "type": "record",
+     "name": "SongStream",
+     "fields": [
+         {"name": "user_id", "type": "string"},
+         {"name": "timestamp", "type": "int"},
+         {"name": "song_id", "type": "int"}
+     ]
+    }
 
-Because of [a bug](http://www.mail-archive.com/commits@cassandra.apache.org/msg50170.html) streaming several SSTables in parallel from a single machine is not possible until Cassandra 1.2. If you are running < 1.2, you can't use the SSTable uploading and it will not be as fast. You activate the SStable uploading by using the -s flag
+We will place files of this schema on our (imaginary) Hadoop file system(HDFS) to a location
 
-Also since the SSTables are flushed at the end of each reduce task, you can't send too much data to any single reducer. A workaround is to use lots of reducers. If you start running into problems with TCP connections, you can add a pool in Hadoop so that not too many reducers run simultaneously
+    hdfs:///example/path/songstreams
 
-## Upcoming fixes
 
-* Flush the SSTables not at the end of the reduce task, but continuously
-* Support other input formats
+### Run hdfs2cass
 
-We would love it if you send us a patch for the things above, or anything else.
+Things should(tm) work out of the box by doing:
+
+    $ git clone this-repository && cd this-repository
+    $ mvn package
+    $ JAR=target/spotify-hdfs2cass-2.0-SNAPSHOT-jar-with-dependencies.jar
+    $ CLASS=com.spotify.hdfs2cass.Hdfs2Cass
+    $ INPUT=/example/path/songstreams
+    $ OUTPUT=cql://cassandra-host.example.net/example/songstreams?reducers=5
+    $ hadoop jar $JAR $CLASS --input $INPUT --output $OUTPUT
+
+This should run a hdfs2cass export with 5 reducers. 
+
+### Check data in C*
+
+If we're lucky, we should eventually see our data in C*:
+
+    $ cqlsh $(cassandra-host.example.net) -e "SELECT * from example.songstreams limit 1;"
+    
+      user_id |  timestamp |   song_id
+    ----------+------------+----------
+    rincewind |   12345678 | 43e0-e12s
+
+## Additional Arguments
+
+[Hdfs2Cass](src/main/java/com/spotify/hdfs2cass/Hdfs2Cass.java) supports additional arguments:
+* `--rowkey` determines which field from input records use as row key, defaults to the first field in the record
+* `--timetamp` to specify the timestamp of values in C*, defaults to now
+* `--ttl` to specify the TTL of values in C*, defaults to 0
+* `--ignore` to omit fields from source records, can be repeated to specify multiple fields
+
+## Output URI Format
+
+The format of the output URI is:
+
+    (cql|thrift)://cassandra-host[:port]/keyspace/table?args...
+
+The protocols in the output URI can be either `cql` or `thrift`. They are used to determine what type of C* column family the data is imported into. The `port` is the binary protocol port C* listens to client connections on.
+
+The `params...` are all optional. They can be:
+   * `buffersize=N` - size of temporary SSTables built before streaming. Example `buffersize=64` will cause SSTables of size 64 MB to be buitl.
+   * `columnnames=N1,N2` - relevant for CQL. Used to override infered order of columns in the prepared insert statement. See [this](src/main/java/com/spotify/hdfs2cass/crunch/cql/CQLRecord.java) for more info.
+   * `compressionclass=S` - what compression to use when building SSTables. Defaults to whichever the table was created with.
+   * `copiers=N` - the default number of parallel transfers run by reduce during the copy(shuffle) phase. Defaults to 5.
+   * `distributerandomly` - used in the shuffle phase. By default, data is grouped on reducers by C*'s partitioner. This option disables that.
+   * `mappers=N` - How many mappers should the job run with. By default this number is determined by magic.
+   * `reducers=N` - How many reducers should the job run with. Having too few reducers for a lot of data will cause the job to fail.
+   * `streamthrottlembits=N` - maximum througput allowed when streaming the SSTables. Defaults to C*'s default.
+   * `rpcport=N` - port used to stream the SSTables. Defaults to the port C* uses for streaming internally.
+
+## More info
+
+For more examples and information, please go ahead and [check how hdfs2cass works](src/main/java/com/spotify/hdfs2cass). You'll find examples of Apache Crunch jobs that can
+serve as a source of inspiration. 

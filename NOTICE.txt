@@ -1,0 +1,10 @@
+
+  spotify-hdfs2cass
+  Copyright 2014 Spotify AB. All rights reserved.
+
+  This product includes software developed at
+  Spotify AB (https://www.spotify.com)
+
+  This software contains code derived from the Apache Cassandra
+  project (http://cassandra.apache.org).
+
