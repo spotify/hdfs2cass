@@ -1,18 +1,18 @@
 # hdfs2cass
 
-hdfs2cass is a wrapper around BulkOutputFormat(s) of Apache Cassandra (C*). It is written using Apache Crunch's API in attempt to make moving data from Hadoop's HDFS into C* easy.
+hdfs2cass is a wrapper around BulkOutputFormat(s) of Apache Cassandra (C\*). It is written using Apache Crunch's API in attempt to make moving data from Hadoop's HDFS into C\* easy.
 
 ## Quickstart
 
-Here's a quick walkthrough of what needs to be done to succefully run hdfs2cass.
+Here's a quick walkthrough of what needs to be done to successfully run hdfs2cass.
 
-### Set up a C* cluster
+### Set up a C\* cluster
 
-To start with, let's assume we have a C* cluster running somewhere and one host in that cluster having a hostname of:
+To start with, let's assume we have a C\* cluster running somewhere and one host in that cluster having a hostname of:
 
     cassandra-host.example.net
 
-In that cluster, we create the following shchema:
+In that cluster, we create the following schema:
 
     CREATE KEYSPACE example WITH replication = {
       'class': 'SimpleStrategy', 'replication_factor': '1'};
@@ -56,9 +56,9 @@ Things should™ work out of the box by doing:
 
 This should run a hdfs2cass export with 5 reducers. 
 
-### Check data in C*
+### Check data in C\*
 
-If we're lucky, we should eventually see our data in C*:
+If we're lucky, we should eventually see our data in C\*:
 
     $ cqlsh $(cassandra-host.example.net) -e "SELECT * from example.songstreams limit 1;"
     
@@ -70,8 +70,8 @@ If we're lucky, we should eventually see our data in C*:
 
 [hdfs2cass](src/main/java/com/spotify/hdfs2cass/Hdfs2Cass.java) supports additional arguments:
 * `--rowkey` to determine which field from the input records to use as row key, defaults to the first field in the record
-* `--timestamp` to specify the timestamp of values in C*, defaults to now
-* `--ttl` to specify the TTL of values in C*, defaults to 0
+* `--timestamp` to specify the timestamp of values in C\*, defaults to now
+* `--ttl` to specify the TTL of values in C\*, defaults to 0
 * `--ignore` to omit fields from source records, can be repeated to specify multiple fields
 
 ## Output URI Format
@@ -80,18 +80,18 @@ The format of the output URI is:
 
     (cql|thrift)://cassandra-host[:port]/keyspace/table?args...
 
-The protocols in the output URI can be either `cql` or `thrift`. They are used to determine what type of C* column family the data is imported into. The `port` is the binary protocol port C* listens to client connections on.
+The protocols in the output URI can be either `cql` or `thrift`. They are used to determine what type of C\* column family the data is imported into. The `port` is the binary protocol port C\* listens to client connections on.
 
 The `params...` are all optional. They can be:
    * `buffersize=N` - Size of temporary SSTables built before streaming. Example `buffersize=64` will cause SSTables of size 64 MB to be built.
    * `columnnames=N1,N2` - Relevant for CQL. Used to override inferred order of columns in the prepared insert statement. See [this](src/main/java/com/spotify/hdfs2cass/crunch/cql/CQLRecord.java) for more info.
    * `compressionclass=S` - What compression to use when building SSTables. Defaults to whichever the table was created with.
    * `copiers=N` - The default number of parallel transfers run by reduce during the copy (shuffle) phase. Defaults to 5.
-   * `distributerandomly` - Used in the shuffle phase. By default, data is grouped on reducers by C*'s partitioner. This option disables that.
+   * `distributerandomly` - Used in the shuffle phase. By default, data is grouped on reducers by C\*'s partitioner. This option disables that.
    * `mappers=N` - How many mappers should the job run with. By default this number is determined by magic.
    * `reducers=N` - How many reducers should the job run with. Having too few reducers for a lot of data will cause the job to fail.
-   * `streamthrottlembits=N` - Maximum throughput allowed when streaming the SSTables. Defaults to C*'s default.
-   * `rpcport=N` - Port used to stream the SSTables. Defaults to the port C* uses for streaming internally.
+   * `streamthrottlembits=N` - Maximum throughput allowed when streaming the SSTables. Defaults to C\*'s default.
+   * `rpcport=N` - Port used to stream the SSTables. Defaults to the port C\* uses for streaming internally.
 
 ## More info
 
