@@ -72,6 +72,12 @@ public class CassandraClusterInfo implements Serializable {
     // ask for some metadata
     Metadata clusterMetadata = cluster.getMetadata();
     TableMetadata tableMetadata = clusterMetadata.getKeyspace(keyspace).getTable(columnFamily);
+    if (tableMetadata == null) {
+      throw new IllegalArgumentException(String.format(
+          "Requested columnfamily '%s' does not exist in keyspace '%s'!",
+          columnFamily,
+          keyspace));
+    }
     columns = tableMetadata.getColumns();
     cqlSchema = tableMetadata.asCQLQuery();
 
