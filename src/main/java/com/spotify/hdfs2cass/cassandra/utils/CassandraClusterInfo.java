@@ -17,6 +17,7 @@ package com.spotify.hdfs2cass.cassandra.utils;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.TableMetadata;
 import com.google.common.base.Optional;
@@ -70,21 +71,23 @@ public class CassandraClusterInfo implements Serializable {
     Cluster cluster = clusterBuilder.build();
 
     // ask for some metadata
-    Metadata clusterMetadata = cluster.getMetadata();
-    TableMetadata tableMetadata = clusterMetadata.getKeyspace(keyspace).getTable(columnFamily);
-    columns = tableMetadata.getColumns();
-    cqlSchema = tableMetadata.asCQLQuery();
-
-    // figure out partitioner info
-    partitionerClass = clusterMetadata.getPartitioner();
     try {
+      Metadata clusterMetadata = cluster.getMetadata();
+      KeyspaceMetadata keyspaceMetadata = clusterMetadata.getKeyspace(keyspace);
+      TableMetadata tableMetadata = keyspaceMetadata.getTable(columnFamily);
+      columns = tableMetadata.getColumns();
+      cqlSchema = tableMetadata.asCQLQuery();
+      partitionerClass = clusterMetadata.getPartitioner();
       Class.forName(partitionerClass);
-    } catch (ClassNotFoundException e) {
-      throw new CrunchRuntimeException("No such partitioner: " + partitionerClass);
+      numClusterNodes = clusterMetadata.getAllHosts().size();
+    } catch (ClassNotFoundException cnfe) {
+      throw new CrunchRuntimeException("No such partitioner: " + partitionerClass, cnfe);
+    } catch (NullPointerException npe) {
+      String msg = String.format("No such keyspace/table: %s/%s", keyspace, columnFamily);
+      throw new CrunchRuntimeException(msg, npe);
+    } finally {
+      cluster.close();
     }
-    numClusterNodes = clusterMetadata.getAllHosts().size();
-
-    cluster.close();
   }
 
   /**
@@ -116,8 +119,8 @@ public class CassandraClusterInfo implements Serializable {
 
   /**
    * Prepare insert statement with column names ordered as they appear in table's schema
-   * obtained from table metadata. Used if {@link com.spotify.hdfs2cass.cassandra.CassandraParams}
-   * don't specify columnnames.
+   * obtained from table metadata. Used if
+   * {@link com.spotify.hdfs2cass.cassandra.utils.CassandraParams} don't specify column names.
    */
   public String inferPreparedStatement() {
     List<String> colNames = Lists.newArrayList();
