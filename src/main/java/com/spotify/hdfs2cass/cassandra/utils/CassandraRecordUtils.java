@@ -16,10 +16,26 @@
 package com.spotify.hdfs2cass.cassandra.utils;
 
 import com.google.common.collect.Lists;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.cassandra.db.marshal.CompositeType;
+import org.apache.cassandra.serializers.BooleanSerializer;
+import org.apache.cassandra.serializers.DecimalSerializer;
+import org.apache.cassandra.serializers.DoubleSerializer;
+import org.apache.cassandra.serializers.FloatSerializer;
+import org.apache.cassandra.serializers.InetAddressSerializer;
+import org.apache.cassandra.serializers.Int32Serializer;
+import org.apache.cassandra.serializers.IntegerSerializer;
+import org.apache.cassandra.serializers.ListSerializer;
+import org.apache.cassandra.serializers.LongSerializer;
+import org.apache.cassandra.serializers.MapSerializer;
+import org.apache.cassandra.serializers.SetSerializer;
+import org.apache.cassandra.serializers.TimestampSerializer;
+import org.apache.cassandra.serializers.TypeSerializer;
+import org.apache.cassandra.serializers.UTF8Serializer;
+import org.apache.cassandra.serializers.UUIDSerializer;
 import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.thrift.ColumnOrSuperColumn;
 import org.apache.cassandra.thrift.Mutation;
@@ -28,10 +44,34 @@ import org.apache.crunch.CrunchRuntimeException;
 import org.joda.time.DateTimeUtils;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public final class CassandraRecordUtils implements Serializable {
+
+  private static final Map<Class<?>, TypeSerializer<?>> serializers;
+  static {
+    serializers = new HashMap<>();
+    serializers.put(BigInteger.class, IntegerSerializer.instance);
+    serializers.put(Boolean.class, BooleanSerializer.instance);
+    serializers.put(BigDecimal.class, DecimalSerializer.instance);
+    serializers.put(Date.class, TimestampSerializer.instance);
+    serializers.put(Double.class, DoubleSerializer.instance);
+    serializers.put(Float.class, FloatSerializer.instance);
+    serializers.put(InetAddress.class, InetAddressSerializer.instance);
+    serializers.put(Integer.class, Int32Serializer.instance);
+    serializers.put(Long.class, LongSerializer.instance);
+    serializers.put(String.class, UTF8Serializer.instance);
+    serializers.put(UUID.class, UUIDSerializer.instance);
+  }
 
   public static ByteBuffer toByteBuffer(final Object value) {
     if (value == null) {
@@ -61,8 +101,58 @@ public final class CassandraRecordUtils implements Serializable {
         buffers.add(toByteBuffer(record.get(field.pos())));
       }
       return CompositeType.build(buffers.toArray(new ByteBuffer[0]));
+    } else if (value instanceof Map) {
+      return serializeMap((Map<?, ?>) value);
+    } else if (value instanceof Set) {
+      return serializeSet((Set<?>) value);
+    } else if (value instanceof List) {
+      return serializeList((List<?>) value);
     }
+
+
     throw new CrunchRuntimeException("Can not transform field (class: " + value.getClass() + ") to ByteBuffer");
+  }
+
+  private static ByteBuffer serializeMap(Map<?, ?> map) {
+    TypeSerializer keySerializer = null;
+    TypeSerializer valueSerializer = null;
+    // no need to pass a serializer for elements if the collection is empty
+    if (!map.isEmpty()) {
+      // need to derive the type of the keys and values of the map
+      Map.Entry<?, ?> firstEntry = map.entrySet().iterator().next();
+      Class<?> keyType = firstEntry.getKey().getClass();
+      Class<?> valueType = firstEntry.getValue().getClass();
+      keySerializer = getSerializer(Map.class, keyType);
+      valueSerializer = getSerializer(Map.class, valueType);
+    }
+    return MapSerializer.getInstance(keySerializer, valueSerializer).serialize(map);
+  }
+
+  private static ByteBuffer serializeList(List<?> list) {
+    TypeSerializer elementSerializer = null;
+    if (!list.isEmpty()) {
+      Object first = list.iterator().next();
+      elementSerializer = getSerializer(List.class, first.getClass());
+    }
+    return ListSerializer.getInstance(elementSerializer).serialize(list);
+  }
+
+  private static ByteBuffer serializeSet(Set<?> set) {
+    TypeSerializer elementSerializer = null;
+    if (!set.isEmpty()) {
+      Object first = set.iterator().next();
+      elementSerializer = getSerializer(Set.class, first.getClass());
+    }
+    return SetSerializer.getInstance(elementSerializer).serialize(set);
+  }
+
+  private static TypeSerializer getSerializer(Class<?> collectionType, Class<?> clazz) {
+    if (!serializers.containsKey(clazz)) {
+      throw new CrunchRuntimeException(
+          "Can not transform " + collectionType + " with element types of " + clazz
+          + " to ByteBuffer");
+    }
+    return serializers.get(clazz);
   }
 
   public static Mutation createMutation(final Object name, final Object value) {
