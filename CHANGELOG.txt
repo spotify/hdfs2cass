@@ -1,0 +1,11 @@
+
+== 2.2
+ * Added support for CQL collections
+ * Cleanly shutdown java-driver connection if there is some error
+ * Throw more eloquent exceptions if keyspace or table don't exist
+
+== 2.1
+ * Modernised version supporting C* 2.0 and CQL
+
+== 1.1 and older
+ * Archaic versions
