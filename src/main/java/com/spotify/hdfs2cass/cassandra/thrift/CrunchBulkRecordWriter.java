@@ -22,6 +22,7 @@
 package com.spotify.hdfs2cass.cassandra.thrift;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.spotify.hdfs2cass.cassandra.utils.CassandraRowCounter;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -197,6 +198,7 @@ public class CrunchBulkRecordWriter
           }
         }
       }
+      context.getCounter(CassandraRowCounter.ROWS_ADDED).increment(1);
     } finally {
       heartbeat.stopHeartbeat();
     }

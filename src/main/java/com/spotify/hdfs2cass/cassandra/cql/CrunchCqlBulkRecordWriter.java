@@ -22,12 +22,12 @@
 package com.spotify.hdfs2cass.cassandra.cql;
 
 import com.google.common.collect.Lists;
+import com.spotify.hdfs2cass.cassandra.utils.CassandraRowCounter;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
 import org.apache.cassandra.hadoop.BulkRecordWriter;
 import org.apache.cassandra.hadoop.ConfigHelper;
-import org.apache.cassandra.hadoop.HadoopCompat;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -100,10 +100,13 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
     values = bb;
     try {
       ((CQLSSTableWriter) writer).rawAddRow(values);
-      if (null != progress)
+      if (null != progress) {
         progress.progress();
-      if (null != context)
-        HadoopCompat.progress(context);
+      }
+      if (null != context) {
+        context.progress();
+        context.getCounter(CassandraRowCounter.ROWS_ADDED).increment(1);
+      }
     } catch (InvalidRequestException e) {
       throw new IOException("Error adding row with key: " + key, e);
     }
