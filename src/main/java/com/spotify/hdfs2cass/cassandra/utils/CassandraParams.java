@@ -50,6 +50,7 @@ public class CassandraParams implements Serializable {
   private boolean distributeRandomly = false;
   private String schema;
   private String statement;
+  private String targetHosts;
 
   /**
    * Configures CassandraProvider based on the target hdfs2cass resource URI.
@@ -83,6 +84,7 @@ public class CassandraParams implements Serializable {
     params.clusterInfo = new CassandraClusterInfo(params.seedNodeHost, params.seedNodePort);
     params.clusterInfo.init(params.keyspace, params.columnFamily);
     params.partitioner = params.clusterInfo.getPartitionerClass();
+    params.targetHosts = params.clusterInfo.getTargetHosts();
 
     params.schema = params.clusterInfo.getCqlSchema();
     if (query.containsKey("columnnames")) {
@@ -151,7 +153,7 @@ public class CassandraParams implements Serializable {
   }
 
   public void configure(final JobConf conf) {
-    ConfigHelper.setOutputInitialAddress(conf, this.getSeedNodeHost());
+    ConfigHelper.setOutputInitialAddress(conf, this.getTargetHosts());
     CrunchConfigHelper.setOutputColumnFamily(conf, this.getKeyspace(), this.getColumnFamily());
     ConfigHelper.setOutputPartitioner(conf, this.getPartitioner());
 
@@ -187,6 +189,13 @@ public class CassandraParams implements Serializable {
    */
   public String getSeedNodeHost() {
     return seedNodeHost;
+  }
+
+  /**
+   * @return comma separated list of hosts where to send the data to.
+   */
+  public String getTargetHosts() {
+    return targetHosts;
   }
 
   /**

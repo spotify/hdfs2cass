@@ -15,11 +15,14 @@
  */
 package com.spotify.hdfs2cass.cassandra.utils;
 
+import com.beust.jcommander.internal.Sets;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.Host;
 import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.TableMetadata;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.spotify.hdfs2cass.cassandra.thrift.ExternalSSTableLoaderClient;
@@ -32,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Set;
 
 public class CassandraClusterInfo implements Serializable {
 
@@ -45,6 +49,7 @@ public class CassandraClusterInfo implements Serializable {
   private String columnFamily;
   private String cqlSchema;
   private List<ColumnMetadata> columns;
+  private String targetHosts;
 
   /**
    * Uses DataStax JavaDriver to fetch Cassandra cluster metadata.
@@ -80,6 +85,9 @@ public class CassandraClusterInfo implements Serializable {
       partitionerClass = clusterMetadata.getPartitioner();
       Class.forName(partitionerClass);
       numClusterNodes = clusterMetadata.getAllHosts().size();
+      String seedHostDc = getDc(host, clusterMetadata);
+      Set<Host> hostsInDc = filterHostsFromDc(seedHostDc, clusterMetadata.getAllHosts());
+      targetHosts = asCommaSeparatedString(hostsInDc);
     } catch (ClassNotFoundException cnfe) {
       throw new CrunchRuntimeException("No such partitioner: " + partitionerClass, cnfe);
     } catch (NullPointerException npe) {
@@ -88,6 +96,41 @@ public class CassandraClusterInfo implements Serializable {
     } finally {
       cluster.close();
     }
+  }
+
+  @VisibleForTesting
+  protected String getDc(String seedHost, Metadata clusterMetadata) {
+    for (Host host : clusterMetadata.getAllHosts()) {
+      if (seedHost.equals(host.getAddress().getHostName())) {
+        return host.getDatacenter();
+      }
+      if (seedHost.equals(host.getAddress().getHostAddress())) {
+        return host.getDatacenter();
+      }
+    }
+    throw new CrunchRuntimeException("Failed to determine what data center seed host lies in");
+  }
+
+  @VisibleForTesting
+  protected Set<Host> filterHostsFromDc(String seedHostSite, Set<Host> allHosts) {
+    Set<Host> hostsInSite = Sets.newHashSet();
+    for (Host host : allHosts) {
+      if (host.getDatacenter().equals(seedHostSite)) {
+        hostsInSite.add(host);
+      }
+    }
+    return hostsInSite;
+  }
+
+  @VisibleForTesting
+  protected String asCommaSeparatedString(Set<Host> hosts) {
+    StringBuilder sb = new StringBuilder();
+    for (Host host : hosts) {
+      sb.append(String.format("%s,", host.getAddress().getHostAddress()));
+    }
+    // remove the last ','
+    sb.deleteCharAt(sb.length()-1);
+    return sb.toString();
   }
 
   /**
@@ -106,6 +149,13 @@ public class CassandraClusterInfo implements Serializable {
    */
   public int getNumClusterNodes() {
     return numClusterNodes;
+  }
+
+  /**
+   * @return comma separated lists of IPs.
+   */
+  public String getTargetHosts() {
+    return targetHosts;
   }
 
   /**

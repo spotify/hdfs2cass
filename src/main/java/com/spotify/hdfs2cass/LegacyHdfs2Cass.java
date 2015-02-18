@@ -25,6 +25,7 @@ import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import com.spotify.hdfs2cass.crunch.cql.CQLTarget;
 import com.spotify.hdfs2cass.crunch.thrift.ThriftRecord;
 import com.spotify.hdfs2cass.crunch.thrift.ThriftTarget;
+import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.crunch.PCollection;
 import org.apache.crunch.Pipeline;
 import org.apache.crunch.PipelineResult;
