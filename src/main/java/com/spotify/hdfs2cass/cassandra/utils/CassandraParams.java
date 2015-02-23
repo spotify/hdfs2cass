@@ -11,6 +11,7 @@ import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.tools.BulkLoader;
 import org.apache.commons.lang.StringUtils;
 import org.apache.crunch.GroupingOptions;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,7 +151,7 @@ public class CassandraParams implements Serializable {
     return result;
   }
 
-  public void configure(final JobConf conf) {
+  public void configure(final Configuration conf) {
     ConfigHelper.setOutputInitialAddress(conf, this.getSeedNodeHost());
     CrunchConfigHelper.setOutputColumnFamily(conf, this.getKeyspace(), this.getColumnFamily());
     ConfigHelper.setOutputPartitioner(conf, this.getPartitioner());
@@ -165,8 +166,8 @@ public class CassandraParams implements Serializable {
       ConfigHelper.setOutputCompressionClass(conf, this.getCompressionClass().get());
     }
 
-    if (this.getMappers().isPresent()) {
-      conf.setNumMapTasks(this.getMappers().get());
+    if (this.getMappers().isPresent() && conf instanceof JobConf) {
+      ((JobConf) conf).setNumMapTasks(this.getMappers().get());
     }
 
     if (this.getCopiers().isPresent()) {
@@ -177,7 +178,9 @@ public class CassandraParams implements Serializable {
       ConfigHelper.setOutputRpcPort(conf, String.valueOf(this.getRpcPort().get()));
     }
 
-    conf.setJarByClass(BulkLoader.class);
+    if (conf instanceof JobConf) {
+      ((JobConf) conf).setJarByClass(BulkLoader.class);
+    }
   }
 
   /**

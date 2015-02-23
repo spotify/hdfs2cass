@@ -84,6 +84,8 @@ public class CQLTarget implements MapReduceTarget, Serializable {
       }
 
       Configuration jobConfiguration = job.getConfiguration();
+      params.configure(jobConfiguration);
+
       CrunchConfigHelper.setOutputColumnFamily(jobConfiguration, params.getKeyspace(),
           params.getColumnFamily());
       CrunchCqlBulkOutputFormat.setColumnFamilySchema(jobConfiguration, params.getColumnFamily(), params.getSchema());

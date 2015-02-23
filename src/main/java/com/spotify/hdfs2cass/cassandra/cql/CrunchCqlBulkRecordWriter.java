@@ -23,6 +23,7 @@ package com.spotify.hdfs2cass.cassandra.cql;
 
 import com.google.common.collect.Lists;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
 import org.apache.cassandra.hadoop.BulkRecordWriter;
@@ -38,6 +39,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * This is an almost-copy of {@link org.apache.cassandra.hadoop.cql3.CqlBulkRecordWriter}
  * <p>
@@ -52,9 +56,17 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
   private String insertStatement;
   private File outputDir;
 
+  private final Logger logger = LoggerFactory.getLogger(CrunchCqlBulkRecordWriter.class);
+
   public CrunchCqlBulkRecordWriter(TaskAttemptContext context) throws IOException {
     super(context);
     setConfigs();
+
+    logger.info("Configured " + STREAM_THROTTLE_MBITS + ": " + conf.get(STREAM_THROTTLE_MBITS, "missing"));
+    logger.info("Configured " + BUFFER_SIZE_IN_MB + ": " + conf.get(BUFFER_SIZE_IN_MB, "missing"));
+    logger.info("localDC = " + DatabaseDescriptor.getLocalDataCenter());
+    logger.info("endpointSnitch = " + DatabaseDescriptor.getEndpointSnitch());
+    DatabaseDescriptor.setStreamThroughputOutboundMegabitsPerSec(1);
   }
 
   private void setConfigs() throws IOException
