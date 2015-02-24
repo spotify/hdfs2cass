@@ -22,6 +22,8 @@ import org.apache.cassandra.streaming.SessionInfo;
 import org.apache.cassandra.streaming.StreamEvent;
 import org.apache.cassandra.streaming.StreamEventHandler;
 import org.apache.cassandra.streaming.StreamState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.Map;
@@ -33,6 +35,9 @@ import java.util.concurrent.TimeUnit;
  * Return true when everything is at 100%
  */
 public class ProgressIndicator implements StreamEventHandler {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ProgressIndicator.class);
+
   private final Map<InetAddress, SessionInfo> sessionsByHost = new ConcurrentHashMap<>();
   private final Map<InetAddress, Set<ProgressInfo>> progressByHost = new ConcurrentHashMap<>();
 
@@ -51,10 +56,25 @@ public class ProgressIndicator implements StreamEventHandler {
   }
 
   public void handleStreamEvent(StreamEvent event) {
+
+    LOG.debug("Handling stream event");
+
     if (event.eventType == StreamEvent.Type.STREAM_PREPARED) {
+
       SessionInfo session = ((StreamEvent.SessionPreparedEvent) event).session;
       sessionsByHost.put(session.peer, session);
+      LOG.info(String.format("Session to %s created", session.connecting.getHostAddress()));
+
+    } else if (event.eventType == StreamEvent.Type.STREAM_COMPLETE ) {
+
+      StreamEvent.SessionCompleteEvent completionEvent = ((StreamEvent.SessionCompleteEvent) event);
+      if (completionEvent.success) {
+        LOG.info(String.format("Stream to %s successful.", completionEvent.peer.getHostAddress()));
+      } else {
+        LOG.info(String.format("Stream to %s failed.", completionEvent.peer.getHostAddress()));
+      }
     } else if (event.eventType == StreamEvent.Type.FILE_PROGRESS) {
+
       ProgressInfo progressInfo = ((StreamEvent.ProgressEvent) event).progress;
 
       // update progress
@@ -63,12 +83,14 @@ public class ProgressIndicator implements StreamEventHandler {
         progresses = Sets.newSetFromMap(Maps.<ProgressInfo, Boolean>newConcurrentMap());
         progressByHost.put(progressInfo.peer, progresses);
       }
-      if (progresses.contains(progressInfo))
+      if (progresses.contains(progressInfo)) {
         progresses.remove(progressInfo);
+      }
       progresses.add(progressInfo);
 
+      // craft status update string
       StringBuilder sb = new StringBuilder();
-      sb.append("\rprogress: ");
+      sb.append("progress: ");
 
       long totalProgress = 0;
       long totalSize = 0;
@@ -79,8 +101,9 @@ public class ProgressIndicator implements StreamEventHandler {
         long current = 0;
         int completed = 0;
         for (ProgressInfo progress : entry.getValue()) {
-          if (progress.currentBytes == progress.totalBytes)
+          if (progress.currentBytes == progress.totalBytes) {
             completed++;
+          }
           current += progress.currentBytes;
         }
         totalProgress += current;
@@ -99,7 +122,7 @@ public class ProgressIndicator implements StreamEventHandler {
       sb.append(mbPerSec(deltaProgress, deltaTime)).append("MB/s");
       sb.append(" (avg: ").append(mbPerSec(totalProgress, TimeUnit.NANOSECONDS.toMillis(time - start))).append("MB/s)]");
 
-      System.out.print(sb.toString());
+      LOG.info(sb.toString());
     }
   }
 

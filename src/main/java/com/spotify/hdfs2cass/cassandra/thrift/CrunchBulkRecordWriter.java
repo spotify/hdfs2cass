@@ -63,7 +63,7 @@ public class CrunchBulkRecordWriter
     extends RecordWriter<ByteBuffer, List<Mutation>> implements
     org.apache.hadoop.mapred.RecordWriter<ByteBuffer, List<Mutation>> {
 
-  private final static Logger logger = LoggerFactory.getLogger(CrunchBulkRecordWriter.class);
+  private final static Logger LOG = LoggerFactory.getLogger(CrunchBulkRecordWriter.class);
 
   private final static String OUTPUT_LOCATION = "mapreduce.output.bulkoutputformat.localdir";
   private final static String BUFFER_SIZE_IN_MB = "mapreduce.output.bulkoutputformat.buffersize";
@@ -71,6 +71,7 @@ public class CrunchBulkRecordWriter
   private final static String MAX_FAILED_HOSTS = "mapreduce.output.bulkoutputformat.maxfailedhosts";
 
   private final Configuration conf;
+  private final ProgressHeartbeat heartbeat;
   private SSTableSimpleUnsortedWriter writer;
   private SSTableLoader loader;
   private File outputdir;
@@ -94,6 +95,7 @@ public class CrunchBulkRecordWriter
     this.context = context;
     int megabitsPerSec = Integer.parseInt(conf.get(STREAM_THROTTLE_MBITS, "0"));
     DatabaseDescriptor.setStreamThroughputOutboundMegabitsPerSec(megabitsPerSec);
+    heartbeat = new ProgressHeartbeat(context, 120);
   }
 
   private String getOutputLocation() {
@@ -151,7 +153,8 @@ public class CrunchBulkRecordWriter
           ConfigHelper.getOutputKeyspaceUserName(conf),
           ConfigHelper.getOutputKeyspacePassword(conf));
 
-      this.loader = new SSTableLoader(outputdir, externalClient, new OutputHandler.SystemOutput(true, true));
+      this.loader = new SSTableLoader(outputdir, externalClient,
+          new OutputHandler.SystemOutput(true, true));
     }
   }
 
@@ -216,22 +219,25 @@ public class CrunchBulkRecordWriter
   }
 
   private void close() throws IOException {
-    logger.info("Closing bulk record writer");
-    ProgressHeartbeat heartbeat = new ProgressHeartbeat(context, 120);
+    LOG.info("SSTables built. Now starting streaming");
     heartbeat.startHeartbeat();
     try {
       if (writer != null) {
         writer.close();
-        Future<StreamState> future = loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator());
+        Future<StreamState> future =
+            loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator());
         try {
           Uninterruptibles.getUninterruptibly(future);
         } catch (ExecutionException e) {
-          throw new RuntimeException("Streaming to the following hosts failed: " + loader.getFailedHosts(), e);
+          throw new RuntimeException("Streaming to the following hosts failed: " +
+              loader.getFailedHosts(), e);
         }
+      } else {
+        LOG.info("SSTableWriter wasn't instantiated, no streaming happened.");
       }
     } finally {
       heartbeat.stopHeartbeat();
     }
-    logger.info("Succesfully closed bulk record writer");
+    LOG.info("Successfully closed bulk record writer");
   }
 }

@@ -22,6 +22,9 @@
 package com.spotify.hdfs2cass.cassandra.cql;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
+import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
+import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
@@ -30,13 +33,20 @@ import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.hadoop.HadoopCompat;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.SSTableLoader;
+import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * This is an almost-copy of {@link org.apache.cassandra.hadoop.cql3.CqlBulkRecordWriter}
@@ -46,7 +56,11 @@ import java.util.List;
  */
 public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, List<ByteBuffer>> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(CrunchCqlBulkRecordWriter.class);
+
   private String keyspace;
+  private final ProgressHeartbeat heartbeat;
+
   private String columnFamily;
   private String schema;
   private String insertStatement;
@@ -55,6 +69,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
   public CrunchCqlBulkRecordWriter(TaskAttemptContext context) throws IOException {
     super(context);
     setConfigs();
+    heartbeat = new ProgressHeartbeat(context, 120);
   }
 
   private void setConfigs() throws IOException
@@ -81,8 +96,8 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
       if (loader == null) {
         CrunchExternalClient externalClient = new CrunchExternalClient(conf);
         externalClient.addKnownCfs(keyspace, schema);
-        this.loader =
-            new SSTableLoader(outputDir, externalClient, new BulkRecordWriter.NullOutputHandler());
+        this.loader = new SSTableLoader(outputDir, externalClient,
+            new BulkRecordWriter.NullOutputHandler());
       }
     } catch (Exception e) {
       throw new IOException(e);
@@ -116,6 +131,39 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
       throw new IOException("Failed to created output directory: " + dir);
     }
     return dir;
+  }
+
+  @Override
+  public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+    close();
+  }
+
+  @Deprecated
+  public void close(org.apache.hadoop.mapred.Reporter reporter) throws IOException {
+    close();
+  }
+
+  private void close() throws IOException {
+    LOG.info("SSTables built. Now starting streaming");
+    heartbeat.startHeartbeat();
+    try {
+      if (writer != null) {
+        writer.close();
+        Future<StreamState> future =
+            loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator());
+        try {
+          Uninterruptibles.getUninterruptibly(future);
+        } catch (ExecutionException e) {
+          throw new RuntimeException("Streaming to the following hosts failed: " +
+              loader.getFailedHosts(), e);
+        }
+      } else {
+        LOG.info("SSTableWriter wasn't instantiated, no streaming happened.");
+      }
+    } finally {
+      heartbeat.stopHeartbeat();
+    }
+    LOG.info("Streaming finished successfully");
   }
 
 }
