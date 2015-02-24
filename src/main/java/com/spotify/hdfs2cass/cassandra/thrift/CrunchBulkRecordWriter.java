@@ -22,6 +22,7 @@
 package com.spotify.hdfs2cass.cassandra.thrift;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.spotify.hdfs2cass.cassandra.utils.CrunchSSTableLoader;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -151,7 +152,8 @@ public class CrunchBulkRecordWriter
           ConfigHelper.getOutputKeyspaceUserName(conf),
           ConfigHelper.getOutputKeyspacePassword(conf));
 
-      this.loader = new SSTableLoader(outputdir, externalClient, new OutputHandler.SystemOutput(true, true));
+      this.loader = new CrunchSSTableLoader(context, outputdir, externalClient,
+          new OutputHandler.SystemOutput(true, true));
     }
   }
 

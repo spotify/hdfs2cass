@@ -22,6 +22,7 @@
 package com.spotify.hdfs2cass.cassandra.cql;
 
 import com.google.common.collect.Lists;
+import com.spotify.hdfs2cass.cassandra.utils.CrunchSSTableLoader;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
@@ -29,7 +30,6 @@ import org.apache.cassandra.hadoop.BulkRecordWriter;
 import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.hadoop.HadoopCompat;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
-import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
@@ -81,8 +81,8 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
       if (loader == null) {
         CrunchExternalClient externalClient = new CrunchExternalClient(conf);
         externalClient.addKnownCfs(keyspace, schema);
-        this.loader =
-            new SSTableLoader(outputDir, externalClient, new BulkRecordWriter.NullOutputHandler());
+        this.loader = new CrunchSSTableLoader(context, outputDir, externalClient,
+            new BulkRecordWriter.NullOutputHandler());
       }
     } catch (Exception e) {
       throw new IOException(e);
