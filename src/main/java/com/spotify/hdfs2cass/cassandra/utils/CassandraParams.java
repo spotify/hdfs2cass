@@ -10,7 +10,9 @@ import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.tools.BulkLoader;
 import org.apache.commons.lang.StringUtils;
+import org.apache.crunch.CrunchRuntimeException;
 import org.apache.crunch.GroupingOptions;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +46,7 @@ public class CassandraParams implements Serializable {
   private int bufferSize = 64;
   private Optional<Integer> streamThrottleMBits = Optional.absent();
   private Optional<String> compressionClass = Optional.absent();
-  private Optional<Integer> mappers = Optional.absent();
   private int reducers = 0;
-  private Optional<Integer> copiers = Optional.absent();
   private boolean distributeRandomly = false;
   private String schema;
   private String statement;
@@ -59,9 +59,7 @@ public class CassandraParams implements Serializable {
    * - buffersize
    * - columnnames
    * - compressionclass
-   * - copiers
    * - distributerandomly
-   * - mappers
    * - reducers
    * - streamthrottlembits
    * - rpcport
@@ -105,7 +103,7 @@ public class CassandraParams implements Serializable {
     }
 
     if (query.containsKey("mappers")) {
-      params.mappers = Optional.of(Integer.parseInt(query.get("mappers")));
+      logger.warn("mappers argument has been deprecated and is now ignored.");
     }
 
     if (query.containsKey("reducers")) {
@@ -115,7 +113,7 @@ public class CassandraParams implements Serializable {
     }
 
     if (query.containsKey("copiers")) {
-      params.copiers = Optional.of(Integer.parseInt(query.get("copiers")));
+      logger.warn("copiers argument has been deprecated and is now ignored.");
     }
 
     if (query.containsKey("distributerandomly")) {
@@ -150,7 +148,17 @@ public class CassandraParams implements Serializable {
     return result;
   }
 
-  public void configure(final JobConf conf) {
+  public void configure(final Configuration conf) {
+    if (conf instanceof JobConf) {
+      configure((JobConf) conf);
+    } else {
+      String msg = String.format("Attempting to run a job with unknown config type: %s",
+          conf.toString());
+      throw new CrunchRuntimeException(msg);
+    }
+  }
+
+  private void configure(final JobConf conf) {
     ConfigHelper.setOutputInitialAddress(conf, this.getSeedNodeHost());
     CrunchConfigHelper.setOutputColumnFamily(conf, this.getKeyspace(), this.getColumnFamily());
     ConfigHelper.setOutputPartitioner(conf, this.getPartitioner());
@@ -158,19 +166,12 @@ public class CassandraParams implements Serializable {
     conf.set("mapreduce.output.bulkoutputformat.buffersize", String.valueOf(this.getBufferSize()));
 
     if (this.getStreamThrottleMBits().isPresent()) {
-      conf.set("mapreduce.output.bulkoutputformat.streamthrottlembits", this.getStreamThrottleMBits().get().toString());
+      conf.set("mapreduce.output.bulkoutputformat.streamthrottlembits",
+          this.getStreamThrottleMBits().get().toString());
     }
 
     if (this.getCompressionClass().isPresent()) {
       ConfigHelper.setOutputCompressionClass(conf, this.getCompressionClass().get());
-    }
-
-    if (this.getMappers().isPresent()) {
-      conf.setNumMapTasks(this.getMappers().get());
-    }
-
-    if (this.getCopiers().isPresent()) {
-      conf.set("mapred.reduce.parallel.copies", String.valueOf(this.getCopiers().get()));
     }
 
     if (this.getRpcPort().isPresent()) {
@@ -244,30 +245,12 @@ public class CassandraParams implements Serializable {
   }
 
   /**
-   * Number of map tasks for the import job.
-   *
-   * @return
-   */
-  public Optional<Integer> getMappers() {
-    return mappers;
-  }
-
-  /**
    * Number of reducers for the import job
    *
    * @return
    */
   public int getReducers() {
     return reducers;
-  }
-
-  /**
-   * Number of parallel transfers run by reduce during the copy(shuffle) phase.
-   *
-   * @return
-   */
-  public Optional<Integer> getCopiers() {
-    return copiers;
   }
 
   /**

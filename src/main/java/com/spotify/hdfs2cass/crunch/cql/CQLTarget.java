@@ -19,6 +19,7 @@ import com.google.common.collect.Maps;
 import com.spotify.hdfs2cass.cassandra.cql.CrunchCqlBulkOutputFormat;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import com.spotify.hdfs2cass.cassandra.utils.CassandraParams;
+import org.apache.crunch.CrunchRuntimeException;
 import org.apache.crunch.SourceTarget;
 import org.apache.crunch.Target;
 import org.apache.crunch.io.CrunchOutputs;
@@ -57,39 +58,40 @@ public class CQLTarget implements MapReduceTarget, Serializable {
 
   @Override
   public void configureForMapReduce(final Job job, final PType<?> pType, final Path outputPath, final String name) {
-    FileOutputFormat.setOutputPath(job, outputPath);
-
-    job.setOutputFormatClass(CrunchCqlBulkOutputFormat.class);
 
     if (name == null) {
-
-      JobConf conf = (JobConf) job.getConfiguration();
-      for (Map.Entry<String, String> e : extraConf.entrySet()) {
-        conf.set(e.getKey(), e.getValue());
-      }
-      params.configure(conf);
-
-    } else {
-
-      JobConf conf = new JobConf();
-      params.configure(conf);
-
-      for (Map.Entry<String, String> e : extraConf.entrySet()) {
-        conf.set(e.getKey(), e.getValue());
-      }
-
-      FormatBundle<CrunchCqlBulkOutputFormat> bundle = FormatBundle.forOutput(CrunchCqlBulkOutputFormat.class);
-      for (Map.Entry<String, String> e : conf) {
-        bundle.set(e.getKey(), e.getValue());
-      }
-
-      Configuration jobConfiguration = job.getConfiguration();
-      CrunchConfigHelper.setOutputColumnFamily(jobConfiguration, params.getKeyspace(),
-          params.getColumnFamily());
-      CrunchCqlBulkOutputFormat.setColumnFamilySchema(jobConfiguration, params.getColumnFamily(), params.getSchema());
-      CrunchCqlBulkOutputFormat.setColumnFamilyInsertStatement(jobConfiguration, params.getColumnFamily(), params.getStatement());
-      CrunchOutputs.addNamedOutput(job, name, bundle, ByteBuffer.class, List.class);
+      throw new CrunchRuntimeException("'name' arguments should not be null. We don't know why tho");
     }
+
+    FileOutputFormat.setOutputPath(job, outputPath);
+    job.setOutputFormatClass(CrunchCqlBulkOutputFormat.class);
+
+    JobConf conf = new JobConf();
+    params.configure(conf);
+
+    for (Map.Entry<String, String> e : extraConf.entrySet()) {
+      conf.set(e.getKey(), e.getValue());
+    }
+
+    FormatBundle<CrunchCqlBulkOutputFormat> bundle = FormatBundle.forOutput(CrunchCqlBulkOutputFormat.class);
+    for (Map.Entry<String, String> e : conf) {
+      bundle.set(e.getKey(), e.getValue());
+    }
+
+    Configuration jobConfiguration = job.getConfiguration();
+
+    // we don't know why exactly this is needed, but without this, the actual streaming will not
+    // see the the throttling and buffer size arguments
+    params.configure(jobConfiguration);
+
+    CrunchConfigHelper.setOutputColumnFamily(jobConfiguration, params.getKeyspace(),
+        params.getColumnFamily());
+    CrunchCqlBulkOutputFormat.setColumnFamilySchema(jobConfiguration, params.getColumnFamily(),
+        params.getSchema());
+    CrunchCqlBulkOutputFormat.setColumnFamilyInsertStatement(jobConfiguration,
+        params.getColumnFamily(), params.getStatement());
+
+    CrunchOutputs.addNamedOutput(job, name, bundle, ByteBuffer.class, List.class);
   }
 
   @Override
