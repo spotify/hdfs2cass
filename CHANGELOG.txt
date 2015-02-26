@@ -1,4 +1,10 @@
 
+== 2.4
+ * Progress reporting for the streaming phase
+
+== 2.3
+ * Fixed disappearing config
+
 == 2.2
  * Added support for CQL collections
  * Cleanly shutdown java-driver connection if there is some error
