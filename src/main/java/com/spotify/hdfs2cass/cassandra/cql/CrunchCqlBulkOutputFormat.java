@@ -54,6 +54,7 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
     throw new CrunchRuntimeException("Use getRecordWriter(org.apache.hadoop.mapreduce.TaskAttemptContext)");
   }
 
+  @Override
   public CrunchCqlBulkRecordWriter getRecordWriter(final TaskAttemptContext context) throws IOException, InterruptedException {
     return new CrunchCqlBulkRecordWriter(context);
   }

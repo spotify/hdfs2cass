@@ -16,12 +16,17 @@
 package com.spotify.hdfs2cass.cassandra.thrift;
 
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Runs a heartbeat thread in the background that calls progress every SLEEP_MINS in order to keep
  * DoFns from timing out. The heartbeat will stop calling progress() after stopAfterMins.
  */
 public class ProgressHeartbeat extends Thread {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ProgressHeartbeat.class);
+
   private static final int SLEEP_MINS = 1;
 
   private final Progressable progressable;
@@ -48,6 +53,7 @@ public class ProgressHeartbeat extends Thread {
   public void run() {
     int minsRunning = 0;
     while (!isCancelled && minsRunning < stopAfterMins) {
+      LOG.debug("Heartbeat invoked");
       progressable.progress();
       try {
         Thread.sleep(1000L * 60L * SLEEP_MINS);
