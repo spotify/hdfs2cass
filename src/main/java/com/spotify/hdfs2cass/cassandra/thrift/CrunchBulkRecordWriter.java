@@ -227,7 +227,12 @@ public class CrunchBulkRecordWriter
         Future<StreamState> future =
             loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator());
         try {
-          Uninterruptibles.getUninterruptibly(future);
+          StreamState streamState = Uninterruptibles.getUninterruptibly(future);
+          if (streamState.hasFailedSession()) {
+            LOG.warn("Some streaming sessions failed");
+          } else {
+            LOG.info("Streaming finished successfully");
+          }
         } catch (ExecutionException e) {
           throw new RuntimeException("Streaming to the following hosts failed: " +
               loader.getFailedHosts(), e);
