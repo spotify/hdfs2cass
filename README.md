@@ -73,6 +73,7 @@ If we're lucky, we should eventually see our data in C\*:
 * `--timestamp` to specify the timestamp of values in C\*, defaults to now
 * `--ttl` to specify the TTL of values in C\*, defaults to 0
 * `--ignore` to omit fields from source records, can be repeated to specify multiple fields
+* `--inputtype` use `parquet` or `avro`, default is `avro`
 
 ## Output URI Format
 
