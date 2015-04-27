@@ -1,6 +1,7 @@
 
 package com.spotify.hdfs2cass.cassandra.utils;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
@@ -50,6 +51,7 @@ public class CassandraParams implements Serializable {
   private boolean distributeRandomly = false;
   private String schema;
   private String statement;
+  private String columnNames;
 
   /**
    * Configures CassandraProvider based on the target hdfs2cass resource URI.
@@ -83,12 +85,14 @@ public class CassandraParams implements Serializable {
     params.partitioner = params.clusterInfo.getPartitionerClass();
 
     params.schema = params.clusterInfo.getCqlSchema();
+    String[] columnNames;
     if (query.containsKey("columnnames")) {
-      String[] columnNames = query.get("columnnames").split(",");
-      params.statement = params.clusterInfo.buildPreparedStatement(columnNames);
+      columnNames = query.get("columnnames").split(",");
     } else {
-      params.statement = params.clusterInfo.inferPreparedStatement();
+      columnNames = params.clusterInfo.getAllColumnNames();
     }
+    params.statement = params.clusterInfo.buildPreparedStatement(columnNames);
+    params.columnNames = Joiner.on(',').join(columnNames);
 
     if (query.containsKey("buffersize")) {
       params.bufferSize = Integer.parseInt(query.get("buffersize"));
@@ -278,6 +282,15 @@ public class CassandraParams implements Serializable {
    */
   public String getStatement() {
     return statement;
+  }
+
+  /**
+   * If using CQL, get a list of column names as they appear in the insert statement.
+   *
+   * @return
+   */
+  public String getColumnNames() {
+    return columnNames;
   }
 
   public Optional<Integer> getRpcPort() {

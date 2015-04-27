@@ -45,6 +45,7 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
 
   private static final String OUTPUT_CQL_SCHEMA_PREFIX = "cassandra.columnfamily.schema.";
   private static final String OUTPUT_CQL_INSERT_PREFIX = "cassandra.columnfamily.insert.";
+  private static final String OUTPUT_CQL_SCHEMA_COLUMNS = "cassandra.columnfamily.columns.";
 
   /**
    * Not used anyway, so do not bother implementing.
@@ -81,6 +82,19 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
       throw new UnsupportedOperationException("You must set the ColumnFamily insert statement using setColumnFamilySchema.");
     }
     return insert;
+  }
+
+  public static void setColumnFamilyColumnNames(Configuration conf, String columnFamily,
+      String columns) {
+    conf.set(OUTPUT_CQL_SCHEMA_COLUMNS + columnFamily, columns);
+  }
+
+  public static String getColumnFamilyColumnNames(Configuration conf, String columnFamily) {
+    String columnNames = conf.get(OUTPUT_CQL_SCHEMA_COLUMNS + columnFamily);
+    if (columnNames == null) {
+      throw new UnsupportedOperationException("You must set column names using setColumnFamilyColumnNames.");
+    }
+    return columnNames;
   }
 
 }
