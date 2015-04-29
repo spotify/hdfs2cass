@@ -1,7 +1,6 @@
 
 package com.spotify.hdfs2cass.cassandra.utils;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
@@ -51,7 +50,7 @@ public class CassandraParams implements Serializable {
   private boolean distributeRandomly = false;
   private String schema;
   private String statement;
-  private String columnNames;
+  private String[] columnNames;
 
   /**
    * Configures CassandraProvider based on the target hdfs2cass resource URI.
@@ -92,7 +91,7 @@ public class CassandraParams implements Serializable {
       columnNames = params.clusterInfo.getAllColumnNames();
     }
     params.statement = params.clusterInfo.buildPreparedStatement(columnNames);
-    params.columnNames = Joiner.on(',').join(columnNames);
+    params.columnNames = columnNames;
 
     if (query.containsKey("buffersize")) {
       params.bufferSize = Integer.parseInt(query.get("buffersize"));
@@ -289,7 +288,7 @@ public class CassandraParams implements Serializable {
    *
    * @return
    */
-  public String getColumnNames() {
+  public String[] getColumnNames() {
     return columnNames;
   }
 

@@ -21,7 +21,6 @@
  */
 package com.spotify.hdfs2cass.cassandra.cql;
 
-import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
@@ -46,7 +45,6 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -60,8 +58,6 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
 
   private static final Logger LOG = LoggerFactory.getLogger(CrunchCqlBulkRecordWriter.class);
 
-  private static final Map<String, Integer> colNameIndices = Maps.newHashMap();
-
   private String keyspace;
   private final ProgressHeartbeat heartbeat;
 
@@ -73,7 +69,6 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
   public CrunchCqlBulkRecordWriter(TaskAttemptContext context) throws IOException {
     super(context);
     setConfigs();
-    setColNames(CrunchCqlBulkOutputFormat.getColumnFamilyColumnNames(conf, columnFamily));
     heartbeat = new ProgressHeartbeat(context, 120);
   }
 
@@ -85,20 +80,6 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
     schema = CrunchCqlBulkOutputFormat.getColumnFamilySchema(conf, columnFamily);
     insertStatement = CrunchCqlBulkOutputFormat.getColumnFamilyInsertStatement(conf, columnFamily);
     outputDir = getColumnFamilyDirectory();
-  }
-
-  private void setColNames(String columnFamilyColumns) {
-    String[] names = columnFamilyColumns.split(",");
-    for (int i = 0; i < names.length; i++) {
-      colNameIndices.put(names[i], i);
-    }
-  }
-
-  public static int getColumnIndex(String colName) {
-    if (colNameIndices.isEmpty() || !colNameIndices.containsKey(colName)) {
-      throw new UnsupportedOperationException("Column name indices were not initialised well.");
-    }
-    return colNameIndices.get(colName);
   }
 
   private void prepareWriter() throws IOException {

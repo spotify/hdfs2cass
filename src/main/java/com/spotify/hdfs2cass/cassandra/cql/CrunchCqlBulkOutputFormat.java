@@ -84,17 +84,17 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
     return insert;
   }
 
-  public static void setColumnFamilyColumnNames(Configuration conf, String columnFamily,
-      String columns) {
-    conf.set(OUTPUT_CQL_SCHEMA_COLUMNS + columnFamily, columns);
+  public static void setColumnIndex(Configuration conf, String columnFamily, String column,
+      int index) {
+    conf.set(String.format("%s%s.%s", OUTPUT_CQL_SCHEMA_COLUMNS, columnFamily, column), String.valueOf(index));
   }
 
-  public static String getColumnFamilyColumnNames(Configuration conf, String columnFamily) {
-    String columnNames = conf.get(OUTPUT_CQL_SCHEMA_COLUMNS + columnFamily);
+  public static int getColumnIndex(Configuration conf, String columnFamily, String column) {
+    String columnNames = conf.get(String.format("%s%s.%s", OUTPUT_CQL_SCHEMA_COLUMNS, columnFamily, column));
     if (columnNames == null) {
-      throw new UnsupportedOperationException("You must set column names using setColumnFamilyColumnNames.");
+      throw new UnsupportedOperationException(String.format("Column name '%s' for table '%s' not found in configuration", column, columnFamily));
     }
-    return columnNames;
+    return Integer.valueOf(columnNames);
   }
 
 }

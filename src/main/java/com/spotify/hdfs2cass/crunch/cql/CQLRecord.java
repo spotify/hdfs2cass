@@ -16,14 +16,16 @@
 package com.spotify.hdfs2cass.crunch.cql;
 
 import com.google.common.collect.Lists;
-import com.spotify.hdfs2cass.cassandra.cql.CrunchCqlBulkRecordWriter;
+import com.spotify.hdfs2cass.cassandra.cql.CrunchCqlBulkOutputFormat;
 import com.spotify.hdfs2cass.cassandra.utils.CassandraRecordUtils;
+import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.crunch.MapFn;
 import org.apache.crunch.Pair;
 import org.apache.crunch.types.PTableType;
 import org.apache.crunch.types.PType;
 import org.apache.crunch.types.avro.Avros;
+import org.apache.hadoop.conf.Configuration;
 import org.joda.time.DateTimeUtils;
 
 import java.io.Serializable;
@@ -66,13 +68,13 @@ public class CQLRecord implements Serializable {
     this.values = values;
   }
 
-  public static CQLRecord create(final Object rowKey, final Map<String, Object> valueMap) {
-    return CQLRecord.create(rowKey, DateTimeUtils.currentTimeMillis(), valueMap);
+  public static CQLRecord create(final Configuration conf, final Object rowKey, final Map<String, Object> valueMap) {
+    return CQLRecord.create(conf, rowKey, DateTimeUtils.currentTimeMillis(), valueMap);
   }
 
-  public static CQLRecord create(final Object rowKey, final long timestamp,
+  public static CQLRecord create(final Configuration conf, final Object rowKey, final long timestamp,
       final Map<String, Object> valueMap) {
-    return CQLRecord.create(rowKey, timestamp, 0, valueMap);
+    return CQLRecord.create(conf, rowKey, timestamp, 0, valueMap);
   }
 
   /**
@@ -81,11 +83,14 @@ public class CQLRecord implements Serializable {
    *                 list herself.
    * @return
    */
-  public static CQLRecord create(final Object rowKey, final long timestamp, final int ttl,
+  public static CQLRecord create(final Configuration conf, final Object rowKey, final long timestamp, final int ttl,
       final Map<String, Object> valueMap) {
     List<Object> values = Lists.newArrayList(new Object[valueMap.size()]);
     for (Map.Entry<String, Object> valueMapEntry : valueMap.entrySet()) {
-      int columnIndex = CrunchCqlBulkRecordWriter.getColumnIndex(valueMapEntry.getKey());
+
+      String cf = CrunchConfigHelper.getOutputColumnFamily(conf);
+      int columnIndex = CrunchCqlBulkOutputFormat.getColumnIndex(conf, cf, valueMapEntry.getKey());
+
       values.add(columnIndex, valueMapEntry.getValue());
     }
     return create(rowKey, timestamp, ttl, values);
