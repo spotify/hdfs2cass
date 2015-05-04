@@ -1,4 +1,8 @@
 
+== 2.5
+ * CqlRecord can be created with columns coming in in a map keyed by column name
+ * Bug fixes in handling serialisation of collections
+
 == 2.4
  * Progress reporting for the streaming phase
 
