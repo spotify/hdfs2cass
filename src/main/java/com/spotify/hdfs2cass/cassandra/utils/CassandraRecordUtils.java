@@ -17,9 +17,12 @@ package com.spotify.hdfs2cass.cassandra.utils;
 
 import com.google.common.collect.Lists;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.util.Utf8;
 import org.apache.cassandra.db.marshal.CompositeType;
 import org.apache.cassandra.serializers.BooleanSerializer;
 import org.apache.cassandra.serializers.DecimalSerializer;
@@ -71,6 +74,7 @@ public final class CassandraRecordUtils implements Serializable {
     serializers.put(Long.class, LongSerializer.instance);
     serializers.put(String.class, UTF8Serializer.instance);
     serializers.put(UUID.class, UUIDSerializer.instance);
+//    serializers.put(Utf8.class, UTF8Serializer.instance);
   }
 
   public static ByteBuffer toByteBuffer(final Object value) {
@@ -89,11 +93,7 @@ public final class CassandraRecordUtils implements Serializable {
     } else if (value instanceof ByteBuffer) {
       return ByteBufferUtil.clone((ByteBuffer) value);
     } else if (value instanceof GenericData.Array) {
-      List<ByteBuffer> buffers = Lists.newArrayList();
-      for (Object item : ((GenericData.Array)value)) {
-        buffers.add(toByteBuffer(item));
-      }
-      return CompositeType.build(buffers.toArray(new ByteBuffer[0]));
+      return serializeList((GenericData.Array)value);
     } else if (value instanceof SpecificRecord) {
       List<ByteBuffer> buffers = Lists.newArrayList();
       SpecificRecord record = (SpecificRecord) value;
@@ -113,6 +113,11 @@ public final class CassandraRecordUtils implements Serializable {
     throw new CrunchRuntimeException("Can not transform field (class: " + value.getClass() + ") to ByteBuffer");
   }
 
+  /**
+   * Serialize a map using Cassandra's map serializer.
+   * Avro's Utf8 can't be cast to String and needs to be converted manually. This applies to both
+   * List and Set.
+   */
   private static ByteBuffer serializeMap(Map<?, ?> map) {
     TypeSerializer keySerializer = null;
     TypeSerializer valueSerializer = null;
@@ -120,6 +125,12 @@ public final class CassandraRecordUtils implements Serializable {
     if (!map.isEmpty()) {
       // need to derive the type of the keys and values of the map
       Map.Entry<?, ?> firstEntry = map.entrySet().iterator().next();
+      if (firstEntry.getKey() instanceof Utf8) {
+        return serializeMap(updateKeysToString(map));
+      }
+      if (firstEntry.getValue() instanceof Utf8) {
+        return serializeMap(updateValuesToString(map));
+      }
       Class<?> keyType = firstEntry.getKey().getClass();
       Class<?> valueType = firstEntry.getValue().getClass();
       keySerializer = getSerializer(Map.class, keyType);
@@ -128,22 +139,62 @@ public final class CassandraRecordUtils implements Serializable {
     return MapSerializer.getInstance(keySerializer, valueSerializer).serialize(map);
   }
 
+  /**
+   * Serialize a list using Cassandra's list serializer.
+   */
   private static ByteBuffer serializeList(List<?> list) {
     TypeSerializer elementSerializer = null;
     if (!list.isEmpty()) {
       Object first = list.iterator().next();
+      if (first instanceof Utf8) {
+        return serializeList(toIterableOfStrings(list));
+      }
       elementSerializer = getSerializer(List.class, first.getClass());
     }
     return ListSerializer.getInstance(elementSerializer).serialize(list);
   }
 
+  /**
+   * Serialize a set using Cassandra's set serializer.
+   */
   private static ByteBuffer serializeSet(Set<?> set) {
     TypeSerializer elementSerializer = null;
     if (!set.isEmpty()) {
       Object first = set.iterator().next();
+      if (first instanceof Utf8) {
+        return serializeSet(Sets.newLinkedHashSet(toIterableOfStrings(set)));
+      }
       elementSerializer = getSerializer(Set.class, first.getClass());
     }
     return SetSerializer.getInstance(elementSerializer).serialize(set);
+  }
+
+  /**
+   * Calls .toString() on each element in the iterable
+   * @return new list with Strings in it
+   */
+  private static List<?> toIterableOfStrings(Iterable<?> list) {
+    List<Object> newList = Lists.newArrayList();
+    for (Object o : list) {
+      newList.add(o.toString());
+    }
+    return newList;
+  }
+
+  private static Map<?, ?> updateKeysToString(Map<?, ?> oldMap) {
+    Map<Object, Object> newMap = Maps.newLinkedHashMap();
+    for (Object oldKey : oldMap.keySet()) {
+      newMap.put(oldKey.toString(), oldMap.get(oldKey));
+    }
+    return newMap;
+  }
+
+  private static Map<?, ?> updateValuesToString(Map<?, ?> oldMap) {
+    Map<Object, Object> newMap = Maps.newLinkedHashMap();
+    for (Object oldKey : oldMap.keySet()) {
+      newMap.put(oldKey, oldMap.get(oldKey).toString());
+    }
+    return newMap;
   }
 
   private static TypeSerializer getSerializer(Class<?> collectionType, Class<?> clazz) {
