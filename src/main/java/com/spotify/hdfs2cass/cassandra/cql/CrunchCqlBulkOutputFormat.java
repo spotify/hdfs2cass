@@ -45,7 +45,6 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
 
   private static final String OUTPUT_CQL_SCHEMA_PREFIX = "cassandra.columnfamily.schema.";
   private static final String OUTPUT_CQL_INSERT_PREFIX = "cassandra.columnfamily.insert.";
-  private static final String OUTPUT_CQL_SCHEMA_COLUMNS = "cassandra.columnfamily.columns.";
 
   /**
    * Not used anyway, so do not bother implementing.
@@ -82,19 +81,6 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
       throw new UnsupportedOperationException("You must set the ColumnFamily insert statement using setColumnFamilySchema.");
     }
     return insert;
-  }
-
-  public static void setColumnIndex(Configuration conf, String columnFamily, String column,
-      int index) {
-    conf.set(String.format("%s%s.%s", OUTPUT_CQL_SCHEMA_COLUMNS, columnFamily, column), String.valueOf(index));
-  }
-
-  public static int getColumnIndex(Configuration conf, String columnFamily, String column) {
-    String columnNames = conf.get(String.format("%s%s.%s", OUTPUT_CQL_SCHEMA_COLUMNS, columnFamily, column));
-    if (columnNames == null) {
-      throw new UnsupportedOperationException(String.format("Column name '%s' for table '%s' not found in configuration", column, columnFamily));
-    }
-    return Integer.valueOf(columnNames);
   }
 
 }

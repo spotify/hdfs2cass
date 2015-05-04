@@ -35,7 +35,6 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.crunch.CrunchRuntimeException;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,13 +66,13 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
   private String insertStatement;
   private File outputDir;
 
-  public CrunchCqlBulkRecordWriter(TaskAttemptContext context)  {
+  public CrunchCqlBulkRecordWriter(TaskAttemptContext context) throws IOException {
     super(context);
     setConfigs();
     heartbeat = new ProgressHeartbeat(context, 120);
   }
 
-  private void setConfigs() 
+  private void setConfigs() throws IOException
   {
     // if anything is missing, exceptions will be thrown here, instead of on write()
     keyspace = ConfigHelper.getOutputKeyspace(conf);
@@ -83,7 +82,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
     outputDir = getColumnFamilyDirectory();
   }
 
-  private void prepareWriter()  {
+  private void prepareWriter() throws IOException {
     try {
       if (writer == null) {
         writer = CQLSSTableWriter.builder()
@@ -101,12 +100,12 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
             new BulkRecordWriter.NullOutputHandler());
       }
     } catch (Exception e) {
-      throw new CrunchRuntimeException(e);
+      throw new IOException(e);
     }
   }
 
   @Override
-  public void write(Object key, List<ByteBuffer> values)  {
+  public void write(Object key, List<ByteBuffer> values) throws IOException {
     prepareWriter();
     // To ensure Crunch doesn't reuse CQLSSTableWriter's objects
     List<ByteBuffer> bb = Lists.newArrayList();
@@ -120,36 +119,31 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
         progress.progress();
       if (null != context)
         HadoopCompat.progress(context);
-    } catch (InvalidRequestException | IOException e) {
-      LOG.error(e.getMessage());
-      throw new CrunchRuntimeException("Error adding row : " + e.getMessage());
+    } catch (InvalidRequestException e) {
+      throw new IOException("Error adding row with key: " + key, e);
     }
   }
 
-  private File getColumnFamilyDirectory()  {
-    try {
-      File dir = new File(String.format("%s%s%s%s%s",
-          getOutputLocation(), File.separator, keyspace, File.separator, columnFamily));
-      if (!dir.exists() && !dir.mkdirs()) {
-        throw new CrunchRuntimeException("Failed to created output directory: " + dir);
-      }
-      return dir;
-    } catch (IOException e) {
-      throw new CrunchRuntimeException(e);
+  private File getColumnFamilyDirectory() throws IOException {
+    File dir = new File(String.format("%s%s%s%s%s",
+        getOutputLocation(), File.separator, keyspace, File.separator, columnFamily));
+    if (!dir.exists() && !dir.mkdirs()) {
+      throw new IOException("Failed to created output directory: " + dir);
     }
+    return dir;
   }
 
   @Override
-  public void close(TaskAttemptContext context) throws InterruptedException {
+  public void close(TaskAttemptContext context) throws IOException, InterruptedException {
     close();
   }
 
   @Deprecated
-  public void close(org.apache.hadoop.mapred.Reporter reporter)  {
+  public void close(org.apache.hadoop.mapred.Reporter reporter) throws IOException {
     close();
   }
 
-  private void close()  {
+  private void close() throws IOException {
     LOG.info("SSTables built. Now starting streaming");
     heartbeat.startHeartbeat();
     try {
@@ -165,14 +159,12 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
             LOG.info("Streaming finished successfully");
           }
         } catch (ExecutionException e) {
-          throw new CrunchRuntimeException("Streaming to the following hosts failed: " +
+          throw new RuntimeException("Streaming to the following hosts failed: " +
               loader.getFailedHosts(), e);
         }
       } else {
         LOG.info("SSTableWriter wasn't instantiated, no streaming happened.");
       }
-    } catch (IOException e) {
-      throw new CrunchRuntimeException(e);
     } finally {
       heartbeat.stopHeartbeat();
     }

@@ -118,15 +118,16 @@ public class CassandraClusterInfo implements Serializable {
   }
 
   /**
-   * Get all column names from table metadata. Used if
+   * Prepare insert statement with column names ordered as they appear in table's schema
+   * obtained from table metadata. Used if
    * {@link com.spotify.hdfs2cass.cassandra.utils.CassandraParams} don't specify column names.
    */
-  public String[] getAllColumnNames() {
+  public String inferPreparedStatement() {
     List<String> colNames = Lists.newArrayList();
     for (ColumnMetadata col : columns) {
       colNames.add(col.getName());
     }
-    return colNames.toArray(new String[colNames.size()]);
+    return buildPreparedStatement(colNames.toArray(new String[colNames.size()]));
   }
 
   /**
