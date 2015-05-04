@@ -91,6 +91,11 @@ public class CQLTarget implements MapReduceTarget, Serializable {
     CrunchCqlBulkOutputFormat.setColumnFamilyInsertStatement(jobConfiguration,
         params.getColumnFamily(), params.getStatement());
 
+    String[] colNames = params.getColumnNames();
+    for(int i=0; i< colNames.length; i++) {
+      CrunchCqlBulkOutputFormat.setColumnIndex(jobConfiguration, params.getColumnFamily(), colNames[i], i);
+    }
+
     CrunchOutputs.addNamedOutput(job, name, bundle, ByteBuffer.class, List.class);
   }
 
