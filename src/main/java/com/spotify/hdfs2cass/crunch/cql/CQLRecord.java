@@ -86,12 +86,10 @@ public class CQLRecord implements Serializable {
   public static CQLRecord create(final Configuration conf, final Object rowKey, final long timestamp, final int ttl,
       final Map<String, Object> valueMap) {
     List<Object> values = Lists.newArrayList(new Object[valueMap.size()]);
+    String cfName = CrunchConfigHelper.getOutputColumnFamily(conf);
     for (Map.Entry<String, Object> valueMapEntry : valueMap.entrySet()) {
-
-      String cf = CrunchConfigHelper.getOutputColumnFamily(conf);
-      int columnIndex = CrunchCqlBulkOutputFormat.getColumnIndex(conf, cf, valueMapEntry.getKey());
-
-      values.add(columnIndex, valueMapEntry.getValue());
+      int columnIndex = CrunchCqlBulkOutputFormat.getColumnIndex(conf, cfName, valueMapEntry.getKey());
+      values.set(columnIndex, valueMapEntry.getValue());
     }
     return create(rowKey, timestamp, ttl, values);
   }
