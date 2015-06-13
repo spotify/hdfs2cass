@@ -37,6 +37,7 @@ import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,22 +141,22 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
 
   @Override
   public void close(TaskAttemptContext context) throws InterruptedException {
-    close();
+    close((Progressable) context);
   }
 
   @Deprecated
   public void close(org.apache.hadoop.mapred.Reporter reporter)  {
-    close();
+    close((Progressable)reporter);
   }
 
-  private void close()  {
+  private void close(org.apache.hadoop.util.Progressable reporter)  {
     LOG.info("SSTables built. Now starting streaming");
     heartbeat.startHeartbeat();
     try {
       if (writer != null) {
         writer.close();
         Future<StreamState> future =
-            loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator());
+            loader.stream(Collections.<InetAddress>emptySet(), new ProgressIndicator(reporter));
         try {
           StreamState streamState = Uninterruptibles.getUninterruptibly(future);
           if (streamState.hasFailedSession()) {

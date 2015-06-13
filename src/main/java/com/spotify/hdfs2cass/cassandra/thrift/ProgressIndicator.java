@@ -31,6 +31,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.util.Progressable;
+
+
 /**
  * Return true when everything is at 100%
  */
@@ -44,9 +47,15 @@ public class ProgressIndicator implements StreamEventHandler {
   private long start;
   private long lastProgress;
   private long lastTime;
+  private Progressable taskStatusreporter;
 
   public ProgressIndicator() {
+    this(null);
+  }
+
+  public ProgressIndicator(Progressable reporter) {
     start = lastTime = System.nanoTime();
+    taskStatusreporter = reporter;
   }
 
   public void onSuccess(StreamState finalState) {
@@ -123,6 +132,8 @@ public class ProgressIndicator implements StreamEventHandler {
       sb.append(" (avg: ").append(mbPerSec(totalProgress, TimeUnit.NANOSECONDS.toMillis(time - start))).append("MB/s)]");
 
       LOG.info(sb.toString());
+      if (taskStatusreporter != null)
+        taskStatusreporter.progress();
     }
   }
 
