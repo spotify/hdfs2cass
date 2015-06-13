@@ -21,12 +21,22 @@
  */
 package com.spotify.hdfs2cass.cassandra.cql;
 
+import org.apache.cassandra.auth.IAuthenticator;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.db.marshal.UTF8Type;
+import org.apache.cassandra.dht.Range;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
+import org.apache.cassandra.hadoop.ConfigHelper;
+import org.apache.cassandra.thrift.*;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.hadoop.conf.Configuration;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.*;
 
 /**
  * This is an almost-copy of {@link org.apache.cassandra.hadoop.cql3.CqlBulkRecordWriter.ExternalClient}
@@ -35,30 +45,106 @@ import java.util.Map;
  * </p>
  */
 public class CrunchExternalClient extends AbstractBulkRecordWriter.ExternalClient {
-  private Map<String, Map<String, CFMetaData>> knownCqlCfs = new HashMap<>();
+
+  private final Map<String, CFMetaData> knownCfs = new HashMap<>();
+  private final Configuration conf;
+  private final String hostlist;
+  private final int rpcPort;
+  private final String username;
+  private final String password;
 
   public CrunchExternalClient(Configuration conf) {
+
     super(conf);
+    this.conf = conf;
+    this.hostlist = ConfigHelper.getOutputInitialAddress(conf);
+    this.rpcPort = ConfigHelper.getOutputRpcPort(conf);
+    this.username = ConfigHelper.getOutputKeyspaceUserName(conf);
+    this.password = ConfigHelper.getOutputKeyspacePassword(conf);
+
   }
 
-  public void addKnownCfs(String keyspace, String cql) {
-    Map<String, CFMetaData> cfs = knownCqlCfs.get(keyspace);
-
-    if (cfs == null) {
-      cfs = new HashMap<>();
-      knownCqlCfs.put(keyspace, cfs);
+  @Override
+  public void init(String keyspace)
+  {
+    Set<InetAddress> hosts = new HashSet<>();
+    String[] nodes = hostlist.split(",");
+    for (String node : nodes)
+    {
+      try
+      {
+        hosts.add(InetAddress.getByName(node));
+      }
+      catch (UnknownHostException e)
+      {
+        throw new RuntimeException(e);
+      }
     }
-    CFMetaData metadata = CFMetaData.compile(cql, keyspace);
-    cfs.put(metadata.cfName, metadata);
+    Iterator<InetAddress> hostiter = hosts.iterator();
+    while (hostiter.hasNext())
+    {
+      try
+      {
+        InetAddress host = hostiter.next();
+        Cassandra.Client client = ConfigHelper.createConnection(conf, host.getHostAddress(), rpcPort);
+
+        // log in
+        client.set_keyspace(keyspace);
+        if (username != null)
+        {
+          Map<String, String> creds = new HashMap<>();
+          creds.put(IAuthenticator.USERNAME_KEY, username);
+          creds.put(IAuthenticator.PASSWORD_KEY, password);
+          AuthenticationRequest authRequest = new AuthenticationRequest(creds);
+          client.login(authRequest);
+        }
+
+        List<TokenRange> tokenRanges = client.describe_ring(keyspace);
+
+        setPartitioner(client.describe_partitioner());
+        Token.TokenFactory tkFactory = getPartitioner().getTokenFactory();
+
+        for (TokenRange tr : tokenRanges)
+        {
+          Range<Token> range = new Range<>(tkFactory.fromString(tr.start_token), tkFactory.fromString(tr.end_token));
+          for (String ep : tr.endpoints)
+          {
+            addRangeForEndpoint(range, InetAddress.getByName(ep));
+          }
+        }
+
+        String cfQuery = String.format("SELECT * FROM %s.%s WHERE keyspace_name = '%s'",
+                Keyspace.SYSTEM_KS,
+                SystemKeyspace.SCHEMA_COLUMNFAMILIES_CF,
+                keyspace);
+        CqlResult cfRes = client.execute_cql3_query(ByteBufferUtil.bytes(cfQuery), Compression.NONE, ConsistencyLevel.ONE);
+
+
+        for (CqlRow row : cfRes.rows)
+        {
+          String columnFamily = UTF8Type.instance.getString(row.columns.get(1).bufferForName());
+          String columnsQuery = String.format("SELECT * FROM %s.%s WHERE keyspace_name = '%s' AND columnfamily_name = '%s'",
+                  Keyspace.SYSTEM_KS,
+                  SystemKeyspace.SCHEMA_COLUMNS_CF,
+                  keyspace,
+                  columnFamily);
+          CqlResult columnsRes = client.execute_cql3_query(ByteBufferUtil.bytes(columnsQuery), Compression.NONE, ConsistencyLevel.ONE);
+
+          CFMetaData metadata = CFMetaData.fromThriftCqlRow(row, columnsRes);
+          knownCfs.put(metadata.cfName, metadata);
+        }
+        break;
+      }
+      catch (Exception e)
+      {
+        if (!hostiter.hasNext())
+          throw new RuntimeException("Could not retrieve endpoint ranges: ", e);
+      }
+    }
   }
 
   @Override
   public CFMetaData getCFMetaData(String keyspace, String cfName) {
-    CFMetaData metadata = super.getCFMetaData(keyspace, cfName);
-    if (metadata != null) {
-      return metadata;
-    }
-    Map<String, CFMetaData> cfs = knownCqlCfs.get(keyspace);
-    return cfs != null ? cfs.get(cfName) : null;
+    return knownCfs.get(cfName);
   }
 }

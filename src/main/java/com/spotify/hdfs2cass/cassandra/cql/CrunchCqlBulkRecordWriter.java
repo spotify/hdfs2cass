@@ -96,7 +96,6 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
       }
       if (loader == null) {
         CrunchExternalClient externalClient = new CrunchExternalClient(conf);
-        externalClient.addKnownCfs(keyspace, schema);
         this.loader = new SSTableLoader(outputDir, externalClient,
             new BulkRecordWriter.NullOutputHandler());
       }
