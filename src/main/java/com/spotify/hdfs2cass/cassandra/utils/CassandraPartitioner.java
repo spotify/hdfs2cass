@@ -42,9 +42,9 @@ public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, AvroV
   private static final Logger logger = LoggerFactory.getLogger(CassandraPartitioner.class);
 
   private static final BigInteger MURMUR3_SCALE =
-      BigInteger.valueOf(Murmur3Partitioner.MINIMUM.token).abs();
+      BigInteger.valueOf(Murmur3Partitioner.MINIMUM.getTokenValue()).abs();
 
-  private AbstractPartitioner partitioner;
+  private IPartitioner partitioner;
   private BigInteger rangePerReducer;
   private List<Integer> reducers;
   private boolean distributeRandomly;
@@ -63,9 +63,9 @@ public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, AvroV
     final Token token = partitioner.getToken(key.datum());
     BigInteger bigIntToken;
     if (token instanceof BigIntegerToken) {
-      bigIntToken = ((BigIntegerToken) token).token.abs();
+      bigIntToken = ((BigIntegerToken) token).getTokenValue().abs();
     } else if (token instanceof LongToken) {
-      bigIntToken = BigInteger.valueOf(((LongToken) token).token).add(MURMUR3_SCALE);
+      bigIntToken = BigInteger.valueOf(((LongToken) token).getTokenValue()).add(MURMUR3_SCALE);
     } else {
       throw new RuntimeException("Invalid partitioner Token type. Only BigIntegerToken and LongToken supported");
     }
@@ -83,7 +83,7 @@ public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, AvroV
     }
 
     try {
-      partitioner = (AbstractPartitioner) Class.forName(partitionerParam).newInstance();
+      partitioner = (IPartitioner) Class.forName(partitionerParam).newInstance();
     } catch (Exception ex) {
       throw new RuntimeException("Invalid partitioner class name: " + partitionerParam);
     }
