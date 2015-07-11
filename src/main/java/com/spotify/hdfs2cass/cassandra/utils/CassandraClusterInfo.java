@@ -73,8 +73,8 @@ public class CassandraClusterInfo implements Serializable {
     // ask for some metadata
     try {
       Metadata clusterMetadata = cluster.getMetadata();
-      KeyspaceMetadata keyspaceMetadata = clusterMetadata.getKeyspace(keyspace);
-      TableMetadata tableMetadata = keyspaceMetadata.getTable(columnFamily);
+      KeyspaceMetadata keyspaceMetadata = clusterMetadata.getKeyspace('"' + keyspace + '"');
+      TableMetadata tableMetadata = keyspaceMetadata.getTable('"' + columnFamily + '"');
       columns = tableMetadata.getColumns();
       cqlSchema = tableMetadata.asCQLQuery();
       partitionerClass = clusterMetadata.getPartitioner();
