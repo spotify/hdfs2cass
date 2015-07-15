@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.crunch.MapFn;
 import org.joda.time.DateTimeUtils;
@@ -61,7 +60,7 @@ public class AvroToCQL extends MapFn<GenericRecord, CQLRecord> {
     }
 
     Object rowkey = null;
-    long timestamp = DateTimeUtils.currentTimeMillis();
+    long timestamp = DateTimeUtils.currentTimeMillis() * 1000;
     int ttl = 0;
     List<Object> values = Lists.newArrayList();
     for (Schema.Field field : record.getSchema().getFields()) {
