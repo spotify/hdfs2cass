@@ -107,6 +107,8 @@ public final class CassandraRecordUtils implements Serializable {
       return serializeSet((Set<?>) value);
     } else if (value instanceof List) {
       return serializeList((List<?>) value);
+    } else if (value instanceof UUID) {
+      return ByteBufferUtil.bytes((UUID) value);
     }
 
 
