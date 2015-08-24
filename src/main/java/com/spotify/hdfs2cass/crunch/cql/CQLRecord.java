@@ -20,6 +20,7 @@ import com.spotify.hdfs2cass.cassandra.cql.CrunchCqlBulkOutputFormat;
 import com.spotify.hdfs2cass.cassandra.utils.CassandraRecordUtils;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.cassandra.utils.Hex;
 import org.apache.crunch.MapFn;
 import org.apache.crunch.Pair;
 import org.apache.crunch.types.PTableType;
@@ -165,6 +166,15 @@ public class CQLRecord implements Serializable {
 
   @Override
   public String toString() {
-    return "CQLRecord{" + "key=" + key + ", values=" + values + '}';
+    String keyAsString = Hex.bytesToHex(key.array());
+    StringBuilder valuesAsStrings = new StringBuilder();
+    valuesAsStrings.append("[");
+    for (ByteBuffer value : values) {
+      valuesAsStrings.append(Hex.bytesToHex(value.array()));
+      valuesAsStrings.append(",");
+    }
+    valuesAsStrings.deleteCharAt(valuesAsStrings.length()-1);
+    valuesAsStrings.append("]");
+    return String.format("CQLRecord(key=%s, values=%s", keyAsString, valuesAsStrings);
   }
 }
