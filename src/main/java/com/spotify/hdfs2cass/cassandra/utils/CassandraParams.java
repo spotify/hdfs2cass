@@ -311,7 +311,7 @@ public class CassandraParams implements Serializable {
         break;
       case "org.apache.cassandra.dht.Murmur3Partitioner":
         maxToken = BigInteger.valueOf(Murmur3Partitioner.MAXIMUM);
-        minToken = BigInteger.valueOf(Murmur3Partitioner.MINIMUM.token);
+        minToken = BigInteger.valueOf(Murmur3Partitioner.MINIMUM.getTokenValue());
         break;
       default:
         throw new IllegalArgumentException("Unknown partitioner class: " + clusterInfo.getPartitionerClass());
