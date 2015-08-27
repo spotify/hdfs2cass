@@ -60,10 +60,10 @@ import java.util.List;
 public class LegacyHdfs2Cass extends Configured implements Tool, Serializable {
 
   @Parameter(names = "--input", required = true)
-  protected static List<String> input;
+  protected List<String> input;
 
   @Parameter(names = "--output", required = true)
-  protected static String output;
+  protected String output;
 
 
   public static void main(String[] args) throws Exception {
