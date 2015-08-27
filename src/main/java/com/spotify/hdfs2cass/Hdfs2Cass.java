@@ -63,22 +63,22 @@ import java.util.List;
 public class Hdfs2Cass extends Configured implements Tool, Serializable {
 
   @Parameter(names = "--input", required = true)
-  protected static List<String> input;
+  protected List<String> input;
 
   @Parameter(names = "--output", required = true)
-  protected static String output;
+  protected String output;
 
   @Parameter(names = "--rowkey")
-  protected static String rowkey = "rowkey";
+  protected String rowkey = "rowkey";
 
   @Parameter(names = "--timestamp")
-  protected static String timestamp;
+  protected String timestamp;
 
   @Parameter(names = "--ttl")
-  protected static String ttl;
+  protected String ttl;
 
   @Parameter(names = "--ignore")
-  protected static List<String> ignore = Lists.newArrayList();
+  protected List<String> ignore = Lists.newArrayList();
 
   public static void main(String[] args) throws Exception {
     // Logging for local runs. Causes duplicate log lines on actual Hadoop cluster
