@@ -29,8 +29,8 @@
     </developers>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <crunch.version>0.11.0-hadoop2</crunch.version>
-        <hadoop.version>2.2.0</hadoop.version>
+        <crunch.version>0.12.0-hadoop2</crunch.version>
+        <hadoop.version>2.6.0</hadoop.version>
         <avro.version>1.7.4</avro.version>
         <cassandra.version>2.0.11</cassandra.version>
         <mainClass />
@@ -52,20 +52,7 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
             <version>${hadoop.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-beanutils</groupId>
-                    <artifactId>commons-beanutils</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-collections</groupId>
-                    <artifactId>commons-collections</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>javax.servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.cassandra</groupId>
