@@ -25,19 +25,27 @@ import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import com.spotify.hdfs2cass.crunch.cql.CQLTarget;
 import com.spotify.hdfs2cass.crunch.thrift.ThriftRecord;
 import com.spotify.hdfs2cass.crunch.thrift.ThriftTarget;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.crunch.PCollection;
 import org.apache.crunch.Pipeline;
 import org.apache.crunch.PipelineResult;
 import org.apache.crunch.impl.mr.MRPipeline;
 import org.apache.crunch.io.From;
+import org.apache.crunch.io.parquet.AvroParquetFileSource;
+import org.apache.crunch.types.avro.Avros;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.BasicConfigurator;
+import parquet.avro.AvroParquetReader;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.List;
@@ -77,6 +85,9 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
   @Parameter(names = "--ttl")
   protected String ttl;
 
+  @Parameter(names = "--inputtype")
+  protected static String inputtype;
+
   @Parameter(names = "--ignore")
   protected List<String> ignore = Lists.newArrayList();
 
@@ -84,6 +95,10 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
     // Logging for local runs. Causes duplicate log lines on actual Hadoop cluster
     BasicConfigurator.configure();
     ToolRunner.run(new Configuration(), new Hdfs2Cass(), args);
+  }
+
+  private static List<Path> inputList(List<String> inputs) {
+    return Lists.newArrayList(Iterables.transform(inputs, new StringToHDFSPath()));
   }
 
   @Override
@@ -99,36 +114,76 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
     // Parse & fetch info about target Cassandra cluster
     CassandraParams params = CassandraParams.parse(outputUri);
 
-    PCollection<GenericRecord> records =
-        ((PCollection<GenericRecord>)(PCollection) pipeline.read(From.avroFile(inputList(input))));
+    PCollection<GenericRecord> records = null;
 
-    String protocol = outputUri.getScheme();
-    if (protocol.equalsIgnoreCase("thrift")) {
-      records
-          // First convert ByteBuffers to ThriftRecords
-          .parallelDo(new AvroToThrift(rowkey, timestamp, ttl, ignore), ThriftRecord.PTYPE)
-          // Then group the ThriftRecords in preparation for writing them
-          .parallelDo(new ThriftRecord.AsPair(), ThriftRecord.AsPair.PTYPE)
-          .groupByKey(params.createGroupingOptions())
-           // Finally write the ThriftRecords to Cassandra
-          .write(new ThriftTarget(outputUri, params));
+    if (inputtype == null || inputtype.equals("avro")) {
+      records = ((PCollection<GenericRecord>) (PCollection) pipeline.read(From.avroFile(inputList(input))));
+    } else if (inputtype.equals("parquet")) {
+      records = ((PCollection<GenericRecord>) (PCollection) pipeline.read(new AvroParquetFileSource<>(inputList(input), Avros.generics(getSchemaFromPath(inputList(input).get(0), new Configuration())))));
     }
-    else if (protocol.equalsIgnoreCase("cql")) {
-      records
-          // In case of CQL, convert ByteBuffers to CQLRecords
-          .parallelDo(new AvroToCQL(rowkey, timestamp, ttl, ignore), CQLRecord.PTYPE)
-          .parallelDo(new CQLRecord.AsPair(), CQLRecord.AsPair.PTYPE)
-          .groupByKey(params.createGroupingOptions())
-          .write(new CQLTarget(outputUri, params));
-    }
+
+    processAndWrite(outputUri, params, records);
 
     // Execute the pipeline
     PipelineResult result = pipeline.done();
     return result.succeeded() ? 0 : 1;
   }
 
-  private static List<Path> inputList(List<String> inputs) {
-    return Lists.newArrayList(Iterables.transform(inputs, new StringToHDFSPath()));
+  private void processAndWrite(URI outputUri, CassandraParams params, PCollection<GenericRecord> records) {
+    String protocol = outputUri.getScheme();
+    if (protocol.equalsIgnoreCase("thrift")) {
+      records
+              // First convert ByteBuffers to ThriftRecords
+              .parallelDo(new AvroToThrift(rowkey, timestamp, ttl, ignore), ThriftRecord.PTYPE)
+                      // Then group the ThriftRecords in preparation for writing them
+              .parallelDo(new ThriftRecord.AsPair(), ThriftRecord.AsPair.PTYPE)
+              .groupByKey(params.createGroupingOptions())
+                      // Finally write the ThriftRecords to Cassandra
+              .write(new ThriftTarget(outputUri, params));
+    }
+    else if (protocol.equalsIgnoreCase("cql")) {
+      records
+              // In case of CQL, convert ByteBuffers to CQLRecords
+              .parallelDo(new AvroToCQL(rowkey, timestamp, ttl, ignore), CQLRecord.PTYPE)
+              .parallelDo(new CQLRecord.AsPair(), CQLRecord.AsPair.PTYPE)
+              .groupByKey(params.createGroupingOptions())
+              .write(new CQLTarget(outputUri, params));
+    }
+  }
+
+  private Schema getSchemaFromPath(Path path, Configuration conf) {
+
+    AvroParquetReader<GenericRecord> reader = null;
+    try {
+      FileSystem fs = FileSystem.get(conf);
+      if (!fs.isFile(path)) {
+        FileStatus[] fstat = fs.listStatus(path, new PathFilter() {
+          @Override
+          public boolean accept(Path path) {
+            String name = path.getName();
+            return !name.startsWith("_") && !name.startsWith(".");
+          }
+        });
+        if (fstat == null || fstat.length == 0) {
+          throw new IllegalArgumentException("No valid files found in directory: " + path);
+        }
+        path = fstat[0].getPath();
+      }
+
+      reader = new AvroParquetReader<>(path);
+      return reader.read().getSchema();
+
+    } catch (IOException e) {
+      throw new RuntimeException("Error reading schema from path: " + path, e);
+    } finally {
+      if (reader != null) {
+        try {
+          reader.close();
+        } catch (IOException e) {
+          // ignored
+        }
+      }
+    }
   }
 
   private static class StringToHDFSPath implements Function<String, Path> {
