@@ -34,6 +34,7 @@ import org.apache.crunch.io.From;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.util.Tool;
 import org.apache.log4j.BasicConfigurator;
@@ -94,7 +95,10 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
     URI outputUri = URI.create(output);
 
     // Our crunch job is a MapReduce job
-    Pipeline pipeline = new MRPipeline(Hdfs2Cass.class, getConf());
+    Configuration conf = getConf();
+    conf.setBoolean(MRJobConfig.MAP_SPECULATIVE, Boolean.FALSE);
+    conf.setBoolean(MRJobConfig.REDUCE_SPECULATIVE, Boolean.FALSE);
+    Pipeline pipeline = new MRPipeline(Hdfs2Cass.class, conf);
 
     // Parse & fetch info about target Cassandra cluster
     CassandraParams params = CassandraParams.parse(outputUri);
