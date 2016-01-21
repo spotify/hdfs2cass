@@ -2,7 +2,8 @@ package com.spotify.hdfs2cass;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Put;
 
 public interface AvroToBTTransformer {
-    BTRow transform(Configuration conf, GenericRecord avroRecord);
+    Put transform(Configuration conf, GenericRecord avroRecord);
 }
