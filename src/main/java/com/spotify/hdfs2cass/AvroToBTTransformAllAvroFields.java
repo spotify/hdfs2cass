@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
 
 public class AvroToBTTransformAllAvroFields implements AvroToBTTransformer {
     public Put transform(Configuration conf, GenericRecord avroRow) {
-        String rowKeyField = conf.get("hdfs2bt.transform.row_key_field");
+        String rowKeyField = conf.get("hdfs2bt.row_key_field");
         ByteBuffer rowKey = CassandraRecordUtils.toByteBuffer(avroRow.get(rowKeyField));
         Put put = new Put(rowKey);
         for(Schema.Field f : avroRow.getSchema().getFields()) {
