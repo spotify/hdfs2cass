@@ -16,11 +16,13 @@ public class AvroToBTTransformAllAvroFields implements AvroToBTTransformer {
         Put put = new Put(rowId);
         for(Schema.Field f : avroRow.getSchema().getFields()) {
             String name = f.name();
-            String[] columnName = name.split("\\:", 1);
-            byte[] columnFamily = columnName[0].getBytes();
-            byte[] columnQualifier = columnName[1].getBytes();
-            byte[] value = CassandraRecordUtils.toByteBuffer(avroRow.get(name)).array();
-            put.addColumn(columnFamily, columnQualifier, value);
+            if(!name.equals(rowIdField)) {
+                String[] columnName = name.split("\\:", 1);
+                byte[] columnFamily = columnName[0].getBytes();
+                byte[] columnQualifier = columnName[1].getBytes();
+                byte[] value = CassandraRecordUtils.toByteBuffer(avroRow.get(name)).array();
+                put.addColumn(columnFamily, columnQualifier, value);
+            }
         }
         return put;
     }
