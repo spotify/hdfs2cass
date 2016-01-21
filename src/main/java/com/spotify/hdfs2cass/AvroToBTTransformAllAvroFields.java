@@ -11,12 +11,12 @@ import java.nio.ByteBuffer;
 
 public class AvroToBTTransformAllAvroFields implements AvroToBTTransformer {
     public Put transform(Configuration conf, GenericRecord avroRow) {
-        String rowIdField = conf.get("hdfs2bt.transform.row_id_field");
-        ByteBuffer rowId = CassandraRecordUtils.toByteBuffer(avroRow.get(rowIdField));
-        Put put = new Put(rowId);
+        String rowKeyField = conf.get("hdfs2bt.transform.row_key_field");
+        ByteBuffer rowKey = CassandraRecordUtils.toByteBuffer(avroRow.get(rowKeyField));
+        Put put = new Put(rowKey);
         for(Schema.Field f : avroRow.getSchema().getFields()) {
             String name = f.name();
-            if(!name.equals(rowIdField)) {
+            if(!name.equals(rowKeyField)) {
                 String[] columnName = name.split("\\:", 1);
                 byte[] columnFamily = columnName[0].getBytes();
                 byte[] columnQualifier = columnName[1].getBytes();
