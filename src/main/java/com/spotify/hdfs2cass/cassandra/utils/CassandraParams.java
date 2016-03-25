@@ -43,7 +43,6 @@ public class CassandraParams implements Serializable {
 
   private String partitioner;
 
-  private int bufferSize = 64;
   private Optional<Integer> streamThrottleMBits = Optional.absent();
   private Optional<String> compressionClass = Optional.absent();
   private int reducers = 0;
@@ -57,7 +56,6 @@ public class CassandraParams implements Serializable {
    * The URI has schema:
    * (thrift|cql)://seedNodeHost[:port]/keySpace/colFamily?query_string
    * query_string keys:
-   * - buffersize
    * - columnnames
    * - compressionclass
    * - distributerandomly
@@ -92,10 +90,6 @@ public class CassandraParams implements Serializable {
     }
     params.statement = params.clusterInfo.buildPreparedStatement(columnNames);
     params.columnNames = columnNames;
-
-    if (query.containsKey("buffersize")) {
-      params.bufferSize = Integer.parseInt(query.get("buffersize"));
-    }
 
     if (query.containsKey("streamthrottlembits")) {
       params.streamThrottleMBits = Optional.of(Integer.parseInt(query.get("streamthrottlembits")));
@@ -166,8 +160,6 @@ public class CassandraParams implements Serializable {
     CrunchConfigHelper.setOutputColumnFamily(conf, this.getKeyspace(), this.getColumnFamily());
     ConfigHelper.setOutputPartitioner(conf, this.getPartitioner());
 
-    conf.set("mapreduce.output.bulkoutputformat.buffersize", String.valueOf(this.getBufferSize()));
-
     if (this.getStreamThrottleMBits().isPresent()) {
       conf.set("mapreduce.output.bulkoutputformat.streamthrottlembits",
           this.getStreamThrottleMBits().get().toString());
@@ -218,15 +210,6 @@ public class CassandraParams implements Serializable {
    */
   public String getPartitioner() {
     return partitioner;
-  }
-
-  /**
-   * Size of SSTables built locally before streaming to Cassandra.
-   *
-   * @return size in MB
-   */
-  public int getBufferSize() {
-    return bufferSize;
   }
 
   /**
@@ -300,6 +283,7 @@ public class CassandraParams implements Serializable {
     logger.info("GroupingOptions.numReducers: " + this.getReducers());
     GroupingOptions.Builder builder = GroupingOptions.builder()
         .partitionerClass(CassandraPartitioner.class)
+        .sortComparatorClass(CassandraKeyComparator.class)
         .numReducers(this.getReducers());
 
     final BigInteger maxToken;

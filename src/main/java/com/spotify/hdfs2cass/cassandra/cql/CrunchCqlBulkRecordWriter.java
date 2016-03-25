@@ -73,7 +73,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
     heartbeat = new ProgressHeartbeat(context, 120);
   }
 
-  private void setConfigs() 
+  private void setConfigs()
   {
     // if anything is missing, exceptions will be thrown here, instead of on write()
     keyspace = ConfigHelper.getOutputKeyspace(conf);
@@ -91,7 +91,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
             .using(insertStatement)
             .withPartitioner(ConfigHelper.getOutputPartitioner(conf))
             .inDirectory(outputDir)
-            .withBufferSizeInMB(Integer.parseInt(conf.get(BUFFER_SIZE_IN_MB, "64")))
+            .sorted()
             .build();
       }
       if (loader == null) {
