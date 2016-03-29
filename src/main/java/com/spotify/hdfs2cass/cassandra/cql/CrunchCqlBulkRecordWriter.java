@@ -144,6 +144,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<ByteBuff
     close();
   }
 
+  @Override
   @Deprecated
   public void close(org.apache.hadoop.mapred.Reporter reporter)  {
     close();
