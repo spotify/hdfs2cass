@@ -152,6 +152,7 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<ByteBuff
 
   private void close()  {
     LOG.info("SSTables built. Now starting streaming");
+    context.setStatus("streaming");
     heartbeat.startHeartbeat();
     try {
       if (writer != null) {
