@@ -29,8 +29,9 @@ import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.hadoop.HadoopCompat;
+import org.apache.cassandra.io.sstable.AbstractSSTableSimpleWriter;
 import org.apache.cassandra.io.sstable.SSTableLoader;
-import org.apache.cassandra.io.sstable.SSTableSimpleUnsortedWriter;
+import org.apache.cassandra.io.sstable.SSTableSimpleWriter;
 import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.thrift.CounterColumn;
@@ -66,13 +67,12 @@ public class CrunchBulkRecordWriter
   private final static Logger LOG = LoggerFactory.getLogger(CrunchBulkRecordWriter.class);
 
   private final static String OUTPUT_LOCATION = "mapreduce.output.bulkoutputformat.localdir";
-  private final static String BUFFER_SIZE_IN_MB = "mapreduce.output.bulkoutputformat.buffersize";
   private final static String STREAM_THROTTLE_MBITS = "mapreduce.output.bulkoutputformat.streamthrottlembits";
   private final static String MAX_FAILED_HOSTS = "mapreduce.output.bulkoutputformat.maxfailedhosts";
 
   private final Configuration conf;
   private final ProgressHeartbeat heartbeat;
-  private SSTableSimpleUnsortedWriter writer;
+  private AbstractSSTableSimpleWriter writer;
   private SSTableLoader loader;
   private File outputdir;
   private TaskAttemptContext context;
@@ -139,13 +139,10 @@ public class CrunchBulkRecordWriter
       if (cfType == CFType.SUPER)
         subcomparator = BytesType.instance;
 
-      int bufferSizeInMB = Integer.parseInt(conf.get(BUFFER_SIZE_IN_MB, "64"));
-      this.writer = new SSTableSimpleUnsortedWriter(
+      this.writer = new SSTableSimpleWriter(
           outputdir, ConfigHelper.getOutputPartitioner(conf),
           keyspace, columnFamily,
-          BytesType.instance, subcomparator,
-          bufferSizeInMB,
-          ConfigHelper.getOutputCompressionParamaters(conf));
+          BytesType.instance, subcomparator);
 
       ExternalSSTableLoaderClient externalClient = new ExternalSSTableLoaderClient(
           ConfigHelper.getOutputInitialAddress(conf),

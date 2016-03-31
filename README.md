@@ -83,7 +83,6 @@ The format of the output URI is:
 The protocols in the output URI can be either `cql` or `thrift`. They are used to determine what type of C\* column family the data is imported into. The `port` is the binary protocol port C\* listens to client connections on.
 
 The `params...` are all optional. They can be:
-   * `buffersize=N` - Size of temporary SSTables built before streaming. Example `buffersize=64` will cause SSTables of size 64 MB to be built.
    * `columnnames=N1,N2` - Relevant for CQL. Used to override inferred order of columns in the prepared insert statement. See [this](src/main/java/com/spotify/hdfs2cass/crunch/cql/CQLRecord.java) for more info.
    * `compressionclass=S` - What compression to use when building SSTables. Defaults to whichever the table was created with.
    * `copiers=N` - The default number of parallel transfers run by reduce during the copy (shuffle) phase. Defaults to 5.
