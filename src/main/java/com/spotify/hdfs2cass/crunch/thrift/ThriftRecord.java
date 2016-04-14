@@ -31,7 +31,10 @@ import java.util.List;
 /**
  * Data structure used when importing hdfs2cass to schema-less Cassandra column families.
  * Schema-less Cassandra column families are the ones that have been created without CQL.
+ *
+ * @deprecated Prefer CQL, see {@link com.spotify.hdfs2cass.crunch.cql.CQLRecord}
  */
+@Deprecated
 public class ThriftRecord implements Serializable {
   public static PType<ThriftRecord> PTYPE = Avros.reflects(ThriftRecord.class);
 
