@@ -19,9 +19,12 @@
  * The original upstream file can be found at
  * https://github.com/apache/cassandra/blob/trunk/src/java/org/apache/cassandra/hadoop/AbstractBulkRecordWriter.java
  */
-package com.spotify.hdfs2cass.cassandra.thrift;
+package org.apache.cassandra.io.sstable;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.spotify.hdfs2cass.cassandra.thrift.ExternalSSTableLoaderClient;
+import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
+import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -162,7 +165,9 @@ public class CrunchBulkRecordWriter
     try {
       setTypes(value.get(0));
       prepareWriter();
-      writer.newRow(keybuff);
+      if (writer.currentKey() == null || !keybuff.equals(writer.currentKey().key)) {
+        writer.newRow(keybuff);
+      }
       for (Mutation mut : value) {
         if (cfType == CFType.SUPER) {
           writer.newSuperColumn(mut.getColumn_or_supercolumn().getSuper_column().name);

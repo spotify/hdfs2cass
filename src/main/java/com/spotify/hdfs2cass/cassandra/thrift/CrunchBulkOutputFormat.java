@@ -22,6 +22,7 @@
 package com.spotify.hdfs2cass.cassandra.thrift;
 
 import org.apache.cassandra.hadoop.AbstractBulkOutputFormat;
+import org.apache.cassandra.io.sstable.CrunchBulkRecordWriter;
 import org.apache.cassandra.thrift.Mutation;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
