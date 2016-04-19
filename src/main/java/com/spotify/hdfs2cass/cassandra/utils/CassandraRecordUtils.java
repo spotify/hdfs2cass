@@ -227,6 +227,44 @@ public final class CassandraRecordUtils implements Serializable {
     return mutation;
   }
 
+  public static ByteBuffer getPartitionKey(final List<ByteBuffer> values,
+                                           final int[] keyIndexes) {
+    if (keyIndexes.length == 1) {
+      return values.get(keyIndexes[0]);
+    } else {
+      final ByteBuffer[] components = new ByteBuffer[keyIndexes.length];
+      for (int i = 0; i < components.length; i++) {
+        components[i] = values.get(keyIndexes[i]);
+      }
+      return compose(components);
+    }
+  }
+
+  /**
+   * Serialize a composite key.
+   */
+  private static ByteBuffer compose(final ByteBuffer[] buffers) {
+    int totalLength = 0;
+    for (final ByteBuffer bb : buffers)
+        totalLength += 2 + bb.remaining() + 1;
+
+    final ByteBuffer out = ByteBuffer.allocate(totalLength);
+    for (final ByteBuffer buffer : buffers)
+    {
+        final ByteBuffer bb = buffer.duplicate();
+        putShortLength(out, bb.remaining());
+        out.put(bb);
+        out.put((byte) 0);
+    }
+    out.flip();
+    return out;
+  }
+
+  private static void putShortLength(final ByteBuffer bb, final int length) {
+    bb.put((byte) ((length >> 8) & 0xFF));
+    bb.put((byte) (length & 0xFF));
+  }
+
   private CassandraRecordUtils() {
   }
 

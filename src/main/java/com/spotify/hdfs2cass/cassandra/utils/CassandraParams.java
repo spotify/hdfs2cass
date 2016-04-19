@@ -1,10 +1,10 @@
-
 package com.spotify.hdfs2cass.cassandra.utils;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
+import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.hadoop.ConfigHelper;
@@ -12,6 +12,7 @@ import org.apache.cassandra.tools.BulkLoader;
 import org.apache.commons.lang.StringUtils;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.crunch.GroupingOptions;
+import org.apache.crunch.MapFn;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
@@ -325,5 +327,21 @@ public class CassandraParams implements Serializable {
     }
 
     return builder.build();
+  }
+
+  /**
+   * @return a map function to extract the partition key from a record
+   */
+  public MapFn<CQLRecord, ByteBuffer> getKeyFn() {
+    return makeKeyFn(clusterInfo.getPartitionKeyIndexes());
+  }
+
+  private static MapFn<CQLRecord, ByteBuffer> makeKeyFn(final int[] partitionKeyIndexes) {
+    return new MapFn<CQLRecord, ByteBuffer>() {
+      @Override
+      public ByteBuffer map(final CQLRecord record) {
+        return CassandraRecordUtils.getPartitionKey(record.getValues(), partitionKeyIndexes);
+      }
+    };
   }
 }

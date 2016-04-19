@@ -17,8 +17,8 @@ package com.spotify.hdfs2cass.crunch.cql;
 
 import com.google.common.collect.Maps;
 import com.spotify.hdfs2cass.cassandra.cql.CrunchCqlBulkOutputFormat;
-import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import com.spotify.hdfs2cass.cassandra.utils.CassandraParams;
+import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.crunch.SourceTarget;
 import org.apache.crunch.Target;
@@ -38,7 +38,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +47,7 @@ import java.util.Map;
 public class CQLTarget implements MapReduceTarget, Serializable {
   private Map<String, String> extraConf = Maps.newHashMap();
 
-  private URI resource;
+  private final URI resource;
   private final CassandraParams params;
 
   public CQLTarget(final URI resource, final CassandraParams params) {
@@ -113,15 +112,11 @@ public class CQLTarget implements MapReduceTarget, Serializable {
   @Override
   public boolean accept(final OutputHandler handler, final PType<?> pType) {
     if (pType instanceof PTableType) {
-      PTableType pTableType = (PTableType) pType;
+      final PTableType<?, ?> pTableType = (PTableType<?, ?>) pType;
       PType<?> keyType = pTableType.getKeyType();
       PType<?> valueType = pTableType.getValueType();
-      List<PType> subTypes = valueType.getSubTypes();
-
       if (ByteBuffer.class.equals(keyType.getTypeClass())
-          && Collection.class.equals(valueType.getTypeClass())
-          && subTypes.size() == 1
-          && ByteBuffer.class.equals(subTypes.get(0).getTypeClass())) {
+          && CQLRecord.class.equals(valueType.getTypeClass())) {
         handler.configure(this, pType);
         return true;
       }
@@ -143,6 +138,4 @@ public class CQLTarget implements MapReduceTarget, Serializable {
   public String toString() {
     return resource.toString();
   }
-
-
 }

@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
+import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
 import org.apache.cassandra.hadoop.BulkRecordWriter;
@@ -55,7 +56,7 @@ import java.util.concurrent.Future;
  * We had to re-implement this class because of https://issues.apache.org/jira/browse/CASSANDRA-8367
  * </p>
  */
-public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, List<ByteBuffer>> {
+public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<ByteBuffer, CQLRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(CrunchCqlBulkRecordWriter.class);
 
@@ -106,16 +107,15 @@ public class CrunchCqlBulkRecordWriter extends AbstractBulkRecordWriter<Object, 
   }
 
   @Override
-  public void write(Object key, List<ByteBuffer> values)  {
+  public void write(final ByteBuffer ignoredKey, final CQLRecord record)  {
     prepareWriter();
     // To ensure Crunch doesn't reuse CQLSSTableWriter's objects
     List<ByteBuffer> bb = Lists.newArrayList();
-    for (ByteBuffer v : values) {
+    for (ByteBuffer v : record.getValues()) {
       bb.add(ByteBufferUtil.clone(v));
     }
-    values = bb;
     try {
-      ((CQLSSTableWriter) writer).rawAddRow(values);
+      ((CQLSSTableWriter) writer).rawAddRow(bb);
       if (null != progress)
         progress.progress();
       if (null != context)

@@ -45,6 +45,7 @@ public class CassandraClusterInfo implements Serializable {
   private String columnFamily;
   private String cqlSchema;
   private List<ColumnMetadata> columns;
+  private int[] partitionKeyIndexes;
 
   /**
    * Uses DataStax JavaDriver to fetch Cassandra cluster metadata.
@@ -68,25 +69,40 @@ public class CassandraClusterInfo implements Serializable {
     if (port != -1) {
       clusterBuilder.withPort(port);
     }
-    Cluster cluster = clusterBuilder.build();
 
     // ask for some metadata
-    try {
+    final TableMetadata tableMetadata;
+    try (final Cluster cluster = clusterBuilder.build()) {
       Metadata clusterMetadata = cluster.getMetadata();
       KeyspaceMetadata keyspaceMetadata = clusterMetadata.getKeyspace('"' + keyspace + '"');
-      TableMetadata tableMetadata = keyspaceMetadata.getTable('"' + columnFamily + '"');
-      columns = tableMetadata.getColumns();
+      tableMetadata = keyspaceMetadata.getTable('"' + columnFamily + '"');
       cqlSchema = tableMetadata.asCQLQuery();
       partitionerClass = clusterMetadata.getPartitioner();
       Class.forName(partitionerClass);
       numClusterNodes = clusterMetadata.getAllHosts().size();
+      columns = tableMetadata.getColumns();
     } catch (ClassNotFoundException cnfe) {
       throw new CrunchRuntimeException("No such partitioner: " + partitionerClass, cnfe);
     } catch (NullPointerException npe) {
       String msg = String.format("No such keyspace/table: %s/%s", keyspace, columnFamily);
       throw new CrunchRuntimeException(msg, npe);
-    } finally {
-      cluster.close();
+    }
+
+    // map the partition key columns
+    final List<ColumnMetadata> partitionKeyColumns = tableMetadata.getPartitionKey();
+    partitionKeyIndexes = new int[partitionKeyColumns.size()];
+    for (int i = 0; i < partitionKeyColumns.size(); i++) {
+      final String keyColName = partitionKeyColumns.get(i).getName();
+      int j;
+      for (j = 0; j < columns.size(); j++) {
+        if (columns.get(j).getName().equals(keyColName)) {
+          partitionKeyIndexes[i] = j;
+        }
+        break;
+      }
+      if (j == columns.size()) {
+        throw new CrunchRuntimeException("no matching column for key " + keyColName);
+      }
     }
   }
 
@@ -115,6 +131,10 @@ public class CassandraClusterInfo implements Serializable {
    */
   public String getCqlSchema() {
     return cqlSchema;
+  }
+
+  public int[] getPartitionKeyIndexes() {
+    return partitionKeyIndexes;
   }
 
   /**

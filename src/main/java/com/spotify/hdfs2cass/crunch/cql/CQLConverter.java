@@ -19,38 +19,39 @@ import org.apache.crunch.Pair;
 import org.apache.crunch.types.Converter;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 
-public class CQLConverter implements Converter<Object, Collection<ByteBuffer>, Pair<Object, Collection<ByteBuffer>>, Pair<Object, Iterable<Collection<ByteBuffer>>>> {
+public class CQLConverter implements Converter<ByteBuffer, CQLRecord, Pair<ByteBuffer, CQLRecord>, Pair<ByteBuffer, Iterable<CQLRecord>>> {
 
   @Override
-  public Pair<Object, Collection<ByteBuffer>> convertInput(Object k, Collection<ByteBuffer> v) {
+  public Pair<ByteBuffer, CQLRecord> convertInput(final ByteBuffer k, final CQLRecord v) {
     return Pair.of(k, v);
   }
 
   @Override
-  public Pair<Object, Iterable<Collection<ByteBuffer>>> convertIterableInput(Object k, Iterable<Collection<ByteBuffer>> v) {
+  public Pair<ByteBuffer, Iterable<CQLRecord>> convertIterableInput(
+      final ByteBuffer k,
+      final Iterable<CQLRecord> v) {
     return Pair.of(k, v);
   }
 
   @Override
-  public Object outputKey(Pair<Object, Collection<ByteBuffer>> value) {
+  public ByteBuffer outputKey(final Pair<ByteBuffer, CQLRecord> value) {
     return value.first();
   }
 
   @Override
-  public Collection<ByteBuffer> outputValue(Pair<Object, Collection<ByteBuffer>> value) {
+  public CQLRecord outputValue(final Pair<ByteBuffer, CQLRecord> value) {
     return value.second();
   }
 
   @Override
-  public Class<Object> getKeyClass() {
-    return Object.class;
+  public Class<ByteBuffer> getKeyClass() {
+    return ByteBuffer.class;
   }
 
   @Override
-  public Class<Collection<ByteBuffer>> getValueClass() {
-    return (Class<Collection<ByteBuffer>>) (Class<?>) Collection.class;
+  public Class<CQLRecord> getValueClass() {
+    return CQLRecord.class;
   }
 
   @Override
