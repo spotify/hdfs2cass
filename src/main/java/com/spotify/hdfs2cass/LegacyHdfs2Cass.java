@@ -30,7 +30,6 @@ import org.apache.crunch.Pipeline;
 import org.apache.crunch.PipelineResult;
 import org.apache.crunch.impl.mr.MRPipeline;
 import org.apache.crunch.io.From;
-import org.apache.crunch.io.avro.AvroFileSource;
 import org.apache.crunch.types.avro.Avros;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -105,7 +104,7 @@ public class LegacyHdfs2Cass extends Configured implements Tool, Serializable {
       records
           // In case of CQL, convert ByteBuffers to CQLRecords
           .parallelDo(new LegacyHdfsToCQL(), CQLRecord.PTYPE)
-          .parallelDo(new CQLRecord.AsPair(), CQLRecord.AsPair.PTYPE)
+          .by(params.getKeyFn(), Avros.bytes())
           .groupByKey(params.createGroupingOptions())
           .write(new CQLTarget(outputUri, params));
     }

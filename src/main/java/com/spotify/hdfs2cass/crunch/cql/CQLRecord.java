@@ -21,9 +21,6 @@ import com.spotify.hdfs2cass.cassandra.utils.CassandraRecordUtils;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.cassandra.utils.Hex;
-import org.apache.crunch.MapFn;
-import org.apache.crunch.Pair;
-import org.apache.crunch.types.PTableType;
 import org.apache.crunch.types.PType;
 import org.apache.crunch.types.avro.Avros;
 import org.apache.hadoop.conf.Configuration;
@@ -31,7 +28,6 @@ import org.joda.time.DateTimeUtils;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +36,7 @@ import java.util.Map;
  * These are column families that have been created using CQL.
  *
  * <p>
- * A CQLRecord consists of Cassandra row key and a List of values. The values are passed to
+ * A CQLRecord consists of a List of values. The values are passed to
  * {@link org.apache.cassandra.hadoop.cql3.CqlBulkOutputFormat}.  They are used as instances of
  * parameters to CqlBulkOutputFormat's prepared statement. hdfs2cass can figure the prepared
  * statement out automatically in {@link com.spotify.hdfs2cass.cassandra.utils.CassandraParams}, but
@@ -48,74 +44,107 @@ import java.util.Map;
  * 'columnnames' parameter in the Cassandra target URI.
  * </p><p>
  * However, order of values must match the order of column names in the prepared statement.
- * Furthermore, CQLRecord does not add key into the values - this is left up to the user.
  * </p>
  */
 public class CQLRecord implements Serializable {
   public static PType<CQLRecord> PTYPE = Avros.reflects(CQLRecord.class);
 
-  private ByteBuffer key;
-  private List<ByteBuffer> values;
+  private final List<ByteBuffer> values;
 
+  /**
+   * Constructor for Avro reflection-based serialization.
+   */
   public CQLRecord() {
+    this(Lists.<ByteBuffer>newArrayList());
   }
 
   /**
-   * @param key    Cassandra row (i.e. partition) key
    * @param values List of column values
    */
-  public CQLRecord(final ByteBuffer key, final List<ByteBuffer> values) {
-    this.key = key;
+  private CQLRecord(final List<ByteBuffer> values) {
     this.values = values;
   }
 
-  public static CQLRecord create(final Configuration conf, final Object rowKey, final Map<String, Object> valueMap) {
-    return CQLRecord.create(conf, rowKey, DateTimeUtils.currentTimeMillis(), valueMap);
+  public static CQLRecord create(final Configuration conf, final Map<String, Object> valueMap) {
+    return create(conf, DateTimeUtils.currentTimeMillis(), 0, valueMap);
   }
 
-  public static CQLRecord create(final Configuration conf, final Object rowKey, final long timestamp,
-      final Map<String, Object> valueMap) {
-    return CQLRecord.create(conf, rowKey, timestamp, 0, valueMap);
-  }
-
-  /**
-   * @param valueMap Column values placed in a map. The map is keyed by column names. This is
-   *                 a convenience method so that user doesn't have to pay attention to build the
-   *                 list herself.
-   * @return
-   */
-  public static CQLRecord create(final Configuration conf, final Object rowKey, final long timestamp, final int ttl,
-      final Map<String, Object> valueMap) {
+  public static CQLRecord create(final Configuration conf, final long timestamp, final int ttl,
+                                 final Map<String, Object> valueMap) {
     List<Object> values = Lists.newArrayList(new Object[valueMap.size()]);
     String cfName = CrunchConfigHelper.getOutputColumnFamily(conf);
     for (Map.Entry<String, Object> valueMapEntry : valueMap.entrySet()) {
       int columnIndex = CrunchCqlBulkOutputFormat.getColumnIndex(conf, cfName, valueMapEntry.getKey());
       values.set(columnIndex, valueMapEntry.getValue());
     }
-    return create(rowKey, timestamp, ttl, values);
+    return create(timestamp, ttl, values);
   }
 
-  /**
-   * @param key    Cassandra row (i.e. partition) key
-   * @param values List of column values
-   * @return
-   */
-  public static CQLRecord create(final Object key, final List<?> values) {
-    return CQLRecord.create(key, DateTimeUtils.currentTimeMillis(), values);
+  public static CQLRecord create(final long timestamp, final List<?> values) {
+    return create(timestamp, 0, values);
   }
 
-  public static CQLRecord create(final Object key, final long timestamp, final List<?> values) {
-    return CQLRecord.create(key, timestamp, 0, values);
-  }
-
-  public static CQLRecord create(final Object key, final long timestamp, final int ttl, final List<?> values) {
+  public static CQLRecord create(final long timestamp, final int ttl, final List<?> values) {
     List<ByteBuffer> list = Lists.newArrayList();
     for (Object value : values) {
       list.add(CassandraRecordUtils.toByteBuffer(value));
     }
     list.add(CassandraRecordUtils.toByteBuffer(timestamp));
     list.add(CassandraRecordUtils.toByteBuffer(ttl));
-    return new CQLRecord(CassandraRecordUtils.toByteBuffer(key), list);
+    return new CQLRecord(list);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Configuration conf, final Object rowKey,
+                                 final long timestamp, final int ttl,
+                                 final Map<String, Object> valueMap) {
+    return create(conf, timestamp, ttl, valueMap);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Configuration conf, final Object rowKey,
+                                 final Map<String, Object> valueMap) {
+    return create(conf, valueMap);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Configuration conf, final Object rowKey,
+                                 final long timestamp, final Map<String, Object> valueMap) {
+    return CQLRecord.create(conf, timestamp, 0, valueMap);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Object key, final List<?> values) {
+    return create(DateTimeUtils.currentTimeMillis(), values);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Object key, final long timestamp, final List<?> values) {
+    return create(timestamp, 0, values);
+  }
+
+  /**
+   * @deprecated Use the overload without the {@code key} argument
+   */
+  @Deprecated
+  public static CQLRecord create(final Object key, final long timestamp, final int ttl,
+                                 final List<?> values) {
+    return create(timestamp, ttl, values);
   }
 
   public static CQLRecord transform(final IndexedRecord record) {
@@ -128,20 +157,8 @@ public class CQLRecord implements Serializable {
     return create(key, values);
   }
 
-  public Pair<ByteBuffer, Collection<ByteBuffer>> asPair() {
-    // casting won't most likely work, because java
-    Collection<ByteBuffer> v = values;
-    return Pair.of(key, v);
-  }
-
-  public static class AsPair extends MapFn<CQLRecord, Pair<ByteBuffer, Collection<ByteBuffer>>> {
-    public static PTableType<ByteBuffer, Collection<ByteBuffer>> PTYPE =
-        Avros.tableOf(Avros.bytes(), Avros.collections(Avros.bytes()));
-
-    @Override
-    public Pair<ByteBuffer, Collection<ByteBuffer>> map(final CQLRecord input) {
-      return input.asPair();
-    }
+  public List<ByteBuffer> getValues() {
+    return values;
   }
 
   @Override
@@ -151,7 +168,6 @@ public class CQLRecord implements Serializable {
 
     CQLRecord cqlRecord = (CQLRecord) o;
 
-    if (!key.equals(cqlRecord.key)) return false;
     if (!values.equals(cqlRecord.values)) return false;
 
     return true;
@@ -159,14 +175,11 @@ public class CQLRecord implements Serializable {
 
   @Override
   public int hashCode() {
-    int result = key.hashCode();
-    result = 31 * result + values.hashCode();
-    return result;
+    return values.hashCode();
   }
 
   @Override
   public String toString() {
-    String keyAsString = Hex.bytesToHex(key.array());
     StringBuilder valuesAsStrings = new StringBuilder();
     valuesAsStrings.append("[");
     for (ByteBuffer value : values) {
@@ -175,6 +188,6 @@ public class CQLRecord implements Serializable {
     }
     valuesAsStrings.deleteCharAt(valuesAsStrings.length()-1);
     valuesAsStrings.append("]");
-    return String.format("CQLRecord(key=%s, values=%s", keyAsString, valuesAsStrings);
+    return String.format("CQLRecord(key=%s, values=%s", valuesAsStrings);
   }
 }

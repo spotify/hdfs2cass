@@ -21,6 +21,7 @@
  */
 package com.spotify.hdfs2cass.cassandra.cql;
 
+import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import org.apache.cassandra.hadoop.AbstractBulkOutputFormat;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.hadoop.conf.Configuration;
@@ -31,7 +32,6 @@ import org.apache.hadoop.util.Progressable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  * This is an almost-copy of {@link org.apache.cassandra.hadoop.cql3.CqlBulkOutputFormat}
@@ -41,7 +41,7 @@ import java.util.List;
  * https://issues.apache.org/jira/browse/CASSANDRA-8367
  * </p>
  */
-public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, List<ByteBuffer>> {
+public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<ByteBuffer, CQLRecord> {
 
   private static final String OUTPUT_CQL_SCHEMA_PREFIX = "cassandra.columnfamily.schema.";
   private static final String OUTPUT_CQL_INSERT_PREFIX = "cassandra.columnfamily.insert.";
@@ -51,6 +51,7 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<Object, 
    * Not used anyway, so do not bother implementing.
    */
   @Deprecated
+  @Override
   public CrunchCqlBulkRecordWriter getRecordWriter(FileSystem filesystem, JobConf job, String name, Progressable progress) throws IOException {
     throw new CrunchRuntimeException("Use getRecordWriter(org.apache.hadoop.mapreduce.TaskAttemptContext)");
   }

@@ -16,9 +16,11 @@
 package com.spotify.hdfs2cass.cassandra.utils;
 
 import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapred.AvroValue;
-import org.apache.cassandra.dht.*;
-import org.apache.cassandra.thrift.Mutation;
+import org.apache.cassandra.dht.AbstractPartitioner;
+import org.apache.cassandra.dht.BigIntegerToken;
+import org.apache.cassandra.dht.LongToken;
+import org.apache.cassandra.dht.Murmur3Partitioner;
+import org.apache.cassandra.dht.Token;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -37,7 +39,7 @@ import java.util.Random;
 /**
  * Uses the cassandra topology to send a key to a particular set of reducers
  */
-public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, AvroValue<Mutation>> implements Configurable, Serializable {
+public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, Object> implements Configurable, Serializable {
 
   private static final Logger logger = LoggerFactory.getLogger(CassandraPartitioner.class);
 
@@ -51,11 +53,8 @@ public class CassandraPartitioner extends Partitioner<AvroKey<ByteBuffer>, AvroV
   private Random random;
   private Configuration conf;
 
-  public CassandraPartitioner() {
-  }
-
   @Override
-  public int getPartition(AvroKey<ByteBuffer> key, AvroValue<Mutation> value, int numReducers) {
+  public int getPartition(AvroKey<ByteBuffer> key, Object value, int numReducers) {
     if (distributeRandomly) {
       return reducers.get(random.nextInt(reducers.size()));
     }

@@ -31,6 +31,7 @@ import org.apache.crunch.Pipeline;
 import org.apache.crunch.PipelineResult;
 import org.apache.crunch.impl.mr.MRPipeline;
 import org.apache.crunch.io.From;
+import org.apache.crunch.types.avro.Avros;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -121,7 +122,7 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
       records
           // In case of CQL, convert ByteBuffers to CQLRecords
           .parallelDo(new AvroToCQL(rowkey, timestamp, ttl, ignore), CQLRecord.PTYPE)
-          .parallelDo(new CQLRecord.AsPair(), CQLRecord.AsPair.PTYPE)
+          .by(params.getKeyFn(), Avros.bytes())
           .groupByKey(params.createGroupingOptions())
           .write(new CQLTarget(outputUri, params));
     }
