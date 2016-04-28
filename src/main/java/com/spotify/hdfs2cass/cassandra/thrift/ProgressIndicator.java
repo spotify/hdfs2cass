@@ -49,12 +49,15 @@ public class ProgressIndicator implements StreamEventHandler {
     start = lastTime = System.nanoTime();
   }
 
+  @Override
   public void onSuccess(StreamState finalState) {
   }
 
+  @Override
   public void onFailure(Throwable t) {
   }
 
+  @Override
   public void handleStreamEvent(StreamEvent event) {
 
     LOG.debug("Handling stream event");
