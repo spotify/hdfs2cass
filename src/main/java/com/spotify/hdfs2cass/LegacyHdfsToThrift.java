@@ -27,7 +27,10 @@ import java.nio.ByteBuffer;
 /**
  * {@link org.apache.crunch.MapFn} implementation used to transform outdated hdfs2cass source format
  * into records suitable for being inserted into non-CQL/Thrift Cassandra table.
+ *
+ * @deprecated Prefer CQL, see {@link LegacyHdfsToCQL}
  */
+@Deprecated
 public class LegacyHdfsToThrift extends MapFn<ByteBuffer, ThriftRecord>  {
 
   /**

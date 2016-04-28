@@ -34,7 +34,10 @@ import java.util.Set;
 /**
  * {@link org.apache.crunch.MapFn} implementation used to transform generic Avro records
  * into records suitable for being inserted into non-CQL/Thrift Cassandra table.
+ *
+ * @deprecated Prefer CQL, see {@link AvroToCQL}
  */
+@Deprecated
 public class AvroToThrift extends MapFn<GenericRecord, ThriftRecord> {
 
   private String rowkey;

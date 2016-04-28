@@ -124,6 +124,7 @@ public class CassandraParams implements Serializable {
     }
 
     if ("thrift".equals(dataResource.getScheme())) {
+      logger.warn("Thrift support is deprecated and will be removed, please use CQL instead");
       params.clusterInfo.validateThriftAccessible(params.rpcPort);
     }
 
