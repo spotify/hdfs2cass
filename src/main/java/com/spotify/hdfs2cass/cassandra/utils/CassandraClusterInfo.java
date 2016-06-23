@@ -71,6 +71,7 @@ public class CassandraClusterInfo implements Serializable {
     }
 
     // ask for some metadata
+    logger.info("getting cluster metadata for {}.{}", keyspace, columnFamily);
     final TableMetadata tableMetadata;
     try (final Cluster cluster = clusterBuilder.build()) {
       Metadata clusterMetadata = cluster.getMetadata();
@@ -97,8 +98,9 @@ public class CassandraClusterInfo implements Serializable {
       for (j = 0; j < columns.size(); j++) {
         if (columns.get(j).getName().equals(keyColName)) {
           partitionKeyIndexes[i] = j;
+          logger.info("partition key column {} index {}", keyColName, j);
+          break;
         }
-        break;
       }
       if (j == columns.size()) {
         throw new CrunchRuntimeException("no matching column for key " + keyColName);
