@@ -95,6 +95,9 @@ public class CassandraParams implements Serializable {
 
     if (query.containsKey("streamthrottlembits")) {
       params.streamThrottleMBits = Optional.of(Integer.parseInt(query.get("streamthrottlembits")));
+      logger.info("setting streamthrottlembits to " + params.streamThrottleMBits.get());
+    } else {
+      logger.warn("No throttling specified");
     }
 
     if (query.containsKey("compressionclass")) {
