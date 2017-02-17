@@ -22,19 +22,18 @@
 package org.apache.cassandra.io.sstable;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+
 import com.spotify.hdfs2cass.cassandra.thrift.ExternalSSTableLoaderClient;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
+
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.hadoop.HadoopCompat;
-import org.apache.cassandra.io.sstable.AbstractSSTableSimpleWriter;
-import org.apache.cassandra.io.sstable.SSTableLoader;
-import org.apache.cassandra.io.sstable.SSTableSimpleWriter;
 import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.thrift.CounterColumn;
@@ -97,7 +96,9 @@ public class CrunchBulkRecordWriter
     this.conf = HadoopCompat.getConfiguration(context);
     this.context = context;
     int megabitsPerSec = Integer.parseInt(conf.get(STREAM_THROTTLE_MBITS, "0"));
+    LOG.info("Setting stream throttling to " + megabitsPerSec);
     DatabaseDescriptor.setStreamThroughputOutboundMegabitsPerSec(megabitsPerSec);
+    DatabaseDescriptor.setInterDCStreamThroughputOutboundMegabitsPerSec(megabitsPerSec);
     heartbeat = new ProgressHeartbeat(context, 120);
   }
 
