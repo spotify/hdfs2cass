@@ -28,7 +28,6 @@ import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
 import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import org.apache.cassandra.exceptions.InvalidRequestException;
-import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
 import org.apache.cassandra.hadoop.BulkRecordWriter;
 import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.cassandra.hadoop.HadoopCompat;

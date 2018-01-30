@@ -6,7 +6,7 @@
 
     <groupId>com.spotify.hdfs2cass</groupId>
     <artifactId>spotify-hdfs2cass</artifactId>
-    <version>2.16-SNAPSHOT</version>
+    <version>3.infinity</version>
     <name>${project.groupId}:${project.artifactId}</name>
 
     <description>
@@ -32,7 +32,7 @@
         <crunch.version>0.12.0-hadoop2</crunch.version>
         <hadoop.version>2.6.0</hadoop.version>
         <avro.version>1.7.4</avro.version>
-        <cassandra.version>2.0.17</cassandra.version>
+        <cassandra.version>2.2.9</cassandra.version>
         <mainClass />
     </properties>
     <scm>

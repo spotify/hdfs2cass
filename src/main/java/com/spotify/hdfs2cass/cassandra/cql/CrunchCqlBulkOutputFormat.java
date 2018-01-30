@@ -22,7 +22,6 @@
 package com.spotify.hdfs2cass.cassandra.cql;
 
 import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
-import org.apache.cassandra.hadoop.AbstractBulkOutputFormat;
 import org.apache.crunch.CrunchRuntimeException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -60,7 +59,6 @@ public class CrunchCqlBulkOutputFormat extends AbstractBulkOutputFormat<ByteBuff
   public CrunchCqlBulkRecordWriter getRecordWriter(final TaskAttemptContext context) throws IOException, InterruptedException {
     return new CrunchCqlBulkRecordWriter(context);
   }
-
   public static void setColumnFamilySchema(Configuration conf, String columnFamily, String schema) {
     conf.set(OUTPUT_CQL_SCHEMA_PREFIX + columnFamily, schema);
   }

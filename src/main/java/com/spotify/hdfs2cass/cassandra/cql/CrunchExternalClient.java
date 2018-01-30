@@ -22,7 +22,6 @@
 package com.spotify.hdfs2cass.cassandra.cql;
 
 import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.hadoop.AbstractBulkRecordWriter;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.HashMap;

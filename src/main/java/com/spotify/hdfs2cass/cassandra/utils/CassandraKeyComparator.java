@@ -37,7 +37,7 @@ public class CassandraKeyComparator implements RawComparator<AvroKey<ByteBuffer>
   private static final DecoderFactory DECODER_FACTORY = DecoderFactory.get();
 
   private Configuration conf;
-  private IPartitioner<?> partitioner;
+  private IPartitioner partitioner;
 
   @Override
   public int compare(byte[] o1, int s1, int l1, byte[] o2, int s2, int l2) {
@@ -81,7 +81,7 @@ public class CassandraKeyComparator implements RawComparator<AvroKey<ByteBuffer>
       throw new RuntimeException("Didn't get any cassandra partitioner information");
     }
     try {
-      partitioner = (IPartitioner<?>) Class.forName(partitionerParam).newInstance();
+      partitioner = (IPartitioner) Class.forName(partitionerParam).newInstance();
     } catch (final Exception e) {
       throw Throwables.propagate(e);
     }

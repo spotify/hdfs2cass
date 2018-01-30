@@ -23,8 +23,6 @@ import com.google.common.collect.Lists;
 import com.spotify.hdfs2cass.cassandra.utils.CassandraParams;
 import com.spotify.hdfs2cass.crunch.cql.CQLRecord;
 import com.spotify.hdfs2cass.crunch.cql.CQLTarget;
-import com.spotify.hdfs2cass.crunch.thrift.ThriftRecord;
-import com.spotify.hdfs2cass.crunch.thrift.ThriftTarget;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.crunch.PCollection;
 import org.apache.crunch.Pipeline;
@@ -108,17 +106,7 @@ public class Hdfs2Cass extends Configured implements Tool, Serializable {
         ((PCollection<GenericRecord>)(PCollection) pipeline.read(From.avroFile(inputList(input))));
 
     String protocol = outputUri.getScheme();
-    if (protocol.equalsIgnoreCase("thrift")) {
-      records
-          // First convert ByteBuffers to ThriftRecords
-          .parallelDo(new AvroToThrift(rowkey, timestamp, ttl, ignore), ThriftRecord.PTYPE)
-          // Then group the ThriftRecords in preparation for writing them
-          .parallelDo(new ThriftRecord.AsPair(), ThriftRecord.AsPair.PTYPE)
-          .groupByKey(params.createGroupingOptions())
-           // Finally write the ThriftRecords to Cassandra
-          .write(new ThriftTarget(outputUri, params));
-    }
-    else if (protocol.equalsIgnoreCase("cql")) {
+    if (protocol.equalsIgnoreCase("cql")) {
       records
           // In case of CQL, convert ByteBuffers to CQLRecords
           .parallelDo(new AvroToCQL(rowkey, timestamp, ttl, ignore), CQLRecord.PTYPE)

@@ -60,6 +60,7 @@ public class ExternalSSTableLoaderClient extends SSTableLoader.Client {
   private final int rpcPort;
   private final String username;
   private final String password;
+  private String keyspace = null;
 
   public ExternalSSTableLoaderClient(String hostlist, int port, String username, String password) {
     super();
@@ -70,6 +71,7 @@ public class ExternalSSTableLoaderClient extends SSTableLoader.Client {
   }
 
   public void init(String keyspace) {
+    this.keyspace =
     Set<InetAddress> hosts = Sets.newHashSet();
     String[] nodes = hostlist.split(",");
     for (String node : nodes) {
@@ -122,9 +124,10 @@ public class ExternalSSTableLoaderClient extends SSTableLoader.Client {
     }
   }
 
-  public CFMetaData getCFMetaData(String keyspace, String cfName) {
+  @Override
+  public CFMetaData getTableMetadata(String s) {
     Map<String, CFMetaData> cfs = knownCfs.get(keyspace);
-    return cfs != null ? cfs.get(cfName) : null;
+    return cfs != null ? cfs.get(s) : null;
   }
 
   private static Cassandra.Client createThriftClient(String host, int port) throws TTransportException {

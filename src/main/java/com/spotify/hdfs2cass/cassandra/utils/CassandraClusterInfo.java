@@ -171,15 +171,4 @@ public class CassandraClusterInfo implements Serializable {
         keyspace, columnFamily, colNames.toString(), valueTemplates.toString());
   }
 
-  public void validateThriftAccessible(final Optional<Integer> rpcPort) {
-    Config.setClientMode(true);
-
-    int port = rpcPort.or(ConfigHelper.getOutputRpcPort(new Configuration()));
-
-    ExternalSSTableLoaderClient client = new ExternalSSTableLoaderClient(this.host, port, null, null);
-    client.init(this.keyspace);
-    if (client.getCFMetaData(this.keyspace, this.columnFamily) == null) {
-      throw new CrunchRuntimeException("Column family not accessible: " + this.keyspace + "." + this.columnFamily);
-    }
-  }
 }
