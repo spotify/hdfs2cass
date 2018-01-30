@@ -6,7 +6,7 @@
 
     <groupId>com.spotify.hdfs2cass</groupId>
     <artifactId>spotify-hdfs2cass</artifactId>
-    <version>3.infinity</version>
+    <version>0.infinity</version>
     <name>${project.groupId}:${project.artifactId}</name>
 
     <description>

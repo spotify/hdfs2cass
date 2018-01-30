@@ -20,13 +20,8 @@ import com.datastax.driver.core.ColumnMetadata;
 import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.TableMetadata;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.spotify.hdfs2cass.cassandra.thrift.ExternalSSTableLoaderClient;
-import org.apache.cassandra.config.Config;
-import org.apache.cassandra.hadoop.ConfigHelper;
 import org.apache.crunch.CrunchRuntimeException;
-import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
