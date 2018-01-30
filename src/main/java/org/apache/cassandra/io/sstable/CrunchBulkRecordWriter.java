@@ -23,7 +23,6 @@ package org.apache.cassandra.io.sstable;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.spotify.hdfs2cass.cassandra.thrift.ExternalSSTableLoaderClient;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressHeartbeat;
 import com.spotify.hdfs2cass.cassandra.thrift.ProgressIndicator;
 import com.spotify.hdfs2cass.crunch.CrunchConfigHelper;
