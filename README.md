@@ -1,5 +1,8 @@
 # hdfs2cass
 
+**Note:** This project has been discontinued. 
+
+
 hdfs2cass is a wrapper around BulkOutputFormat(s) of Apache Cassandra (C\*). It is written using Apache Crunch's API in attempt to make moving data from Hadoop's HDFS into C\* easy.
 
 ## Quickstart
